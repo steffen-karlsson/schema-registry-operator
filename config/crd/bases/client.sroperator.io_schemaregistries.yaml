@@ -265,6 +265,13 @@ spec:
             type: object
           status:
             description: SchemaRegistryStatus defines the observed state of SchemaRegistry
+            properties:
+              compatibilityLevel:
+                description: Used to define the schema registry compatibility level
+                type: string
+              schemaRegistryVersion:
+                description: Used to define the schema registry version
+                type: string
             type: object
         type: object
     served: true

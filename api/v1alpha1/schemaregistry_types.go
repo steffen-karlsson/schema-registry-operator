@@ -95,8 +95,11 @@ type KafkaConfigAuthentication struct {
 
 // SchemaRegistryStatus defines the observed state of SchemaRegistry
 type SchemaRegistryStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Used to define the schema registry version
+	SchemaRegistryVersion string `json:"schemaRegistryVersion,omitempty"`
+
+	// Used to define the schema registry compatibility level
+	CompatibilityLevel string `json:"compatibilityLevel,omitempty"`
 }
 
 // +kubebuilder:object:root=true
