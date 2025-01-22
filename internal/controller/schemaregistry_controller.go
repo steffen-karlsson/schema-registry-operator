@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -95,20 +96,66 @@ func (r *SchemaRegistryReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	err = r.Get(ctx, types.NamespacedName{Name: schemaRegistry.Name, Namespace: schemaRegistry.Namespace}, found)
 	logger.Info(req.Name + ":" + req.Namespace)
 	if err != nil && apierrors.IsNotFound(err) {
-		deployment := r.createSchemaRegistryDeployment(schemaRegistry)
-
-		if err = ctrl.SetControllerReference(schemaRegistry, deployment, r.Scheme); err != nil {
-			logger.Error(err, "failed to set controller reference", "deployment", deployment)
-			return ctrl.Result{}, err
-		}
-
-		if err = r.Create(ctx, deployment); err != nil {
-			logger.Error(err, "failed to create deployment", "deployment", deployment)
+		if err = r.deploySchemaRegistry(ctx, schemaRegistry, logger); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
+}
+
+func (r *SchemaRegistryReconciler) deploySchemaRegistry(
+	ctx context.Context,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) error {
+	configMap := r.createSchemaRegistryConfigMap(schemaRegistry)
+	if err := ctrl.SetControllerReference(schemaRegistry, configMap, r.Scheme); err != nil {
+		logger.Error(err, "failed to set controller reference", "configmap", configMap)
+		return err
+	}
+
+	if err := r.Create(ctx, configMap); err != nil {
+		logger.Error(err, "failed to create deployment", "configmap", configMap)
+		return err
+	}
+
+	deployment := r.createSchemaRegistryDeployment(schemaRegistry)
+	if err := ctrl.SetControllerReference(schemaRegistry, deployment, r.Scheme); err != nil {
+		logger.Error(err, "failed to set controller reference", "deployment", deployment)
+		return err
+	}
+
+	if err := r.Create(ctx, deployment); err != nil {
+		logger.Error(err, "failed to create deployment", "deployment", deployment)
+		return err
+	}
+
+	service := r.createSchemaRegistryService(schemaRegistry)
+	if err := ctrl.SetControllerReference(schemaRegistry, service, r.Scheme); err != nil {
+		logger.Error(err, "failed to set controller reference", "service", service)
+		return err
+	}
+
+	if err := r.Create(ctx, service); err != nil {
+		logger.Error(err, "failed to create service", "service", service)
+		return err
+	}
+
+	if schemaRegistry.Spec.Ingress.Enabled {
+		ingress := r.createSchemaRegistryIngress(schemaRegistry)
+		if err := ctrl.SetControllerReference(schemaRegistry, ingress, r.Scheme); err != nil {
+			logger.Error(err, "failed to set controller reference", "ingress", ingress)
+			return err
+		}
+
+		if err := r.Create(ctx, ingress); err != nil {
+			logger.Error(err, "failed to create ingress", "ingress", ingress)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *SchemaRegistryReconciler) createSchemaRegistryDeployment(sr *clientv1alpha1.SchemaRegistry) *appsv1.Deployment {
