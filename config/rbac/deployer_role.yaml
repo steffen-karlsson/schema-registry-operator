@@ -1,0 +1,21 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deployer-role
+rules:
+- apiGroups:
+  - apps
+  - networking.k8s.io
+  resources:
+  - deployments
+  - ingresses
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

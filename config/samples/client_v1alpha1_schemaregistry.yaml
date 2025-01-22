@@ -5,20 +5,21 @@ metadata:
     app.kubernetes.io/name: schema-registry-operator
     app.kubernetes.io/managed-by: kustomize
   name: schemaregistry-sample
+  namespace: schema-registry-operator-system
 spec:
   image:
-    version: 6.1.0
+    tag: 6.1.0
     repository: docker.io/confluentinc/cp-schema-registry
     pullPolicy: IfNotPresent
-  replicas: 6
+  replicas: 1
   compatibilityLevel: BACKWARD
   resources:
     requests:
-      memory: 16Gi
-      cpu: 4
+      memory: 1Gi
+      cpu: 2
     limits:
-      memory: 32Gi
-      cpu: 8
+      memory: 2Gi
+      cpu: 2
   ingress:
     enabled: true
     host: my-schema-registry.com
@@ -30,7 +31,7 @@ spec:
     bootstrapServers:
       - my-cluster-kafka-bootstrap:9092
     authentication:
-      salsJassConfig:
+      saslJaasConfig:
         valueFrom:
           secretKeyRef:
             name: my-cluster-cluster-admin

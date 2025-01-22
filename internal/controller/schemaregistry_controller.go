@@ -40,7 +40,7 @@ const (
 	SchemaRegistryPodName         = "schema-registry-server"
 	SchemaRegistryHttpPort        = 8082
 	SchemaRegistryHttpsPort       = 8081
-	SchemaRegistryHttpPortName    = "schema-registry-http"
+	SchemaRegistryHttpPortName    = "sr-http"
 	PrometheusExporterPodName     = "prometheus-jmx-exporter"
 	PrometheusExporterPodImage    = "bitnami/jmx-exporter:1.1.0"
 	PrometheusConfigMapNameSuffix = "jmx-config"
@@ -93,6 +93,7 @@ func (r *SchemaRegistryReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// The purpose is to create a deployment for the SchemaRegistry
 	found := &appsv1.Deployment{}
 	err = r.Get(ctx, types.NamespacedName{Name: schemaRegistry.Name, Namespace: schemaRegistry.Namespace}, found)
+	logger.Info(req.Name + ":" + req.Namespace)
 	if err != nil && apierrors.IsNotFound(err) {
 		deployment := r.createSchemaRegistryDeployment(schemaRegistry)
 
@@ -158,7 +159,7 @@ func (r *SchemaRegistryReconciler) createSchemaRegistryDeployment(sr *clientv1al
 		},
 		{
 			Name:      "SCHEMA_REGISTRY_KAFKASTORE_SASL_JAAS_CONFIG",
-			ValueFrom: sr.Spec.KafkaConfig.Authentication.SaslJaasConfig,
+			ValueFrom: sr.Spec.KafkaConfig.Authentication.SaslJaasConfig.Source,
 		},
 		{
 			Name:  "SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL",

@@ -88,9 +88,16 @@ type KafkaConfig struct {
 	Authentication KafkaConfigAuthentication `json:"authentication,omitempty"`
 }
 
+// KafkaConfigAuthentication defines the desired state of the Kafka authentication
 type KafkaConfigAuthentication struct {
 	// Used to define the type of authentication
-	SaslJaasConfig *corev1.EnvVarSource `json:"saslJaasConfig,omitempty"`
+	SaslJaasConfig ValueFrom `json:"saslJaasConfig,omitempty"`
+}
+
+// type ValueFrom defines the desired state of the value from
+type ValueFrom struct {
+	// Used to define the value from the field
+	Source *corev1.EnvVarSource `json:"valueFrom,omitempty"`
 }
 
 // SchemaRegistryStatus defines the observed state of SchemaRegistry

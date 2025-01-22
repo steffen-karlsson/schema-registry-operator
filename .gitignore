@@ -26,3 +26,7 @@ go.work.sum
 
 # Intellij
 .idea/
+
+# Artifacts
+/dist
+/bin

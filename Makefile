@@ -50,7 +50,7 @@ endif
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.39.0
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= controller:1.0.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -174,7 +174,7 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 ##@ Deployment
 
 ifndef ignore-not-found
-  ignore-not-found = false
+  ignore-not-found = true
 endif
 
 .PHONY: install
@@ -204,6 +204,7 @@ $(LOCALBIN):
 ## Tool Binaries
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
+KIND ?= kind
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
@@ -322,3 +323,24 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+# ================ Custom targets
+
+# Deploy the example CRD
+.PHONY: deploy-example
+deploy-example: ## Deploy the example CRD
+	$(KUBECTL) apply -k config/samples
+
+.PHONY: undeploy-example
+undeploy-example: ## Undeploy the example CRD
+	$(KUBECTL) delete -k config/samples --force --grace-period=0 --ignore-not-found=$(ignore-not-found)
+
+# Redeploy
+.PHONY: redeploy ## Redeploy the operator with the latest image
+redeploy:
+	$(MAKE) docker-build
+	$(KIND) load docker-image $(IMG)
+	$(MAKE) undeploy-example
+	$(MAKE) undeploy
+	$(MAKE) deploy
+	$(MAKE) deploy-example

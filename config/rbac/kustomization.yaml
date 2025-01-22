@@ -26,4 +26,9 @@ resources:
 - schema_viewer_role.yaml
 - schemaregistry_editor_role.yaml
 - schemaregistry_viewer_role.yaml
+# The following RBAC configurations are used to grant the
+# necessary permissions to the controller-manager to manage
+# Deployments, Ingresses and Services in the deployment namespace.
+- deployer_role.yaml
+- deployer_role_binding.yaml
 
