@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -243,7 +244,7 @@ func (r *SchemaRegistryReconciler) createSchemaRegistryDeployment(sr *clientv1al
 	if sr.Spec.Metrics.Enabled {
 		objectMeta.Annotations = map[string]string{
 			"prometheus.io/scrape": "true",
-			"prometheus.io/port":   string(sr.Spec.Metrics.Port),
+			"prometheus.io/port":   strconv.Itoa(int(sr.Spec.Metrics.Port)),
 		}
 
 		volumes = append(volumes, corev1.Volume{
@@ -262,7 +263,7 @@ func (r *SchemaRegistryReconciler) createSchemaRegistryDeployment(sr *clientv1al
 			Image:           PrometheusExporterPodImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Args: []string{
-				string(sr.Spec.Metrics.Port),
+				strconv.Itoa(int(sr.Spec.Metrics.Port)),
 				"/etc/jmx-exporter/" + JmxConfigMapFileName,
 			},
 			Ports: []corev1.ContainerPort{
