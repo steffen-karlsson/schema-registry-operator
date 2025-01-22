@@ -1,0 +1,37 @@
+apiVersion: client.sroperator.io/v1alpha1
+kind: SchemaRegistry
+metadata:
+  labels:
+    app.kubernetes.io/name: schema-registry-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: schemaregistry-sample
+spec:
+  image:
+    version: 6.1.0
+    repository: docker.io/confluentinc/cp-schema-registry
+    pullPolicy: IfNotPresent
+  replicas: 6
+  compatibilityLevel: BACKWARD
+  resources:
+    requests:
+      memory: 16Gi
+      cpu: 4
+    limits:
+      memory: 32Gi
+      cpu: 8
+  ingress:
+    enabled: true
+    host: my-schema-registry.com
+  metrics:
+    enabled: true
+    port: 9404
+  debug: true
+  kafkaConfig:
+    bootstrapServers:
+      - my-cluster-kafka-bootstrap:9092
+    authentication:
+      salsJassConfig:
+        valueFrom:
+          secretKeyRef:
+            name: my-cluster-cluster-admin
+            key: sasl.jaas.config

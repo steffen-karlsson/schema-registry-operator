@@ -1,0 +1,27 @@
+# permissions for end users to edit schemaregistries.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: schema-registry-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: schemaregistry-editor-role
+rules:
+- apiGroups:
+  - client.sroperator.io
+  resources:
+  - schemaregistries
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - client.sroperator.io
+  resources:
+  - schemaregistries/status
+  verbs:
+  - get

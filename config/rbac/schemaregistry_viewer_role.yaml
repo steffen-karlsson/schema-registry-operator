@@ -1,0 +1,23 @@
+# permissions for end users to view schemaregistries.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: schema-registry-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: schemaregistry-viewer-role
+rules:
+- apiGroups:
+  - client.sroperator.io
+  resources:
+  - schemaregistries
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - client.sroperator.io
+  resources:
+  - schemaregistries/status
+  verbs:
+  - get

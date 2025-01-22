@@ -1,0 +1,35 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - client.sroperator.io
+  resources:
+  - schemaregistries
+  - schemas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - client.sroperator.io
+  resources:
+  - schemaregistries/finalizers
+  - schemas/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - client.sroperator.io
+  resources:
+  - schemaregistries/status
+  - schemas/status
+  verbs:
+  - get
+  - patch
+  - update
