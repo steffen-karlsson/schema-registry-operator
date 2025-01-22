@@ -59,6 +59,15 @@ type SchemaRegistryReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// Upsert creates or updates the given object in the cluster
+func (r *SchemaRegistryReconciler) Upsert(ctx context.Context, obj client.Object, exists bool) error {
+	if exists {
+		return r.Update(ctx, obj)
+	}
+
+	return r.Create(ctx, obj)
+}
+
 // +kubebuilder:rbac:groups=client.sroperator.io,resources=schemaregistries,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=client.sroperator.io,resources=schemaregistries/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=client.sroperator.io,resources=schemaregistries/finalizers,verbs=update
@@ -96,8 +105,9 @@ func (r *SchemaRegistryReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	found := &appsv1.Deployment{}
 	err = r.Get(ctx, types.NamespacedName{Name: schemaRegistry.Name, Namespace: schemaRegistry.Namespace}, found)
 	logger.Info(req.Name + ":" + req.Namespace)
-	if err != nil && apierrors.IsNotFound(err) {
-		if err = r.deploySchemaRegistry(ctx, schemaRegistry, logger); err != nil {
+	if err != nil {
+		exists := !apierrors.IsNotFound(err)
+		if err = r.deploySchemaRegistry(ctx, schemaRegistry, exists, logger); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -108,6 +118,7 @@ func (r *SchemaRegistryReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 func (r *SchemaRegistryReconciler) deploySchemaRegistry(
 	ctx context.Context,
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	exists bool,
 	logger logr.Logger,
 ) error {
 	configMap := r.createSchemaRegistryConfigMap(schemaRegistry)
@@ -116,7 +127,7 @@ func (r *SchemaRegistryReconciler) deploySchemaRegistry(
 		return err
 	}
 
-	if err := r.Create(ctx, configMap); err != nil {
+	if err := r.Upsert(ctx, configMap, exists); err != nil {
 		logger.Error(err, "failed to create deployment", "configmap", configMap)
 		return err
 	}
@@ -127,7 +138,7 @@ func (r *SchemaRegistryReconciler) deploySchemaRegistry(
 		return err
 	}
 
-	if err := r.Create(ctx, deployment); err != nil {
+	if err := r.Upsert(ctx, deployment, exists); err != nil {
 		logger.Error(err, "failed to create deployment", "deployment", deployment)
 		return err
 	}
@@ -138,7 +149,7 @@ func (r *SchemaRegistryReconciler) deploySchemaRegistry(
 		return err
 	}
 
-	if err := r.Create(ctx, service); err != nil {
+	if err := r.Upsert(ctx, service, exists); err != nil {
 		logger.Error(err, "failed to create service", "service", service)
 		return err
 	}
@@ -150,7 +161,7 @@ func (r *SchemaRegistryReconciler) deploySchemaRegistry(
 			return err
 		}
 
-		if err := r.Create(ctx, ingress); err != nil {
+		if err := r.Upsert(ctx, ingress, exists); err != nil {
 			logger.Error(err, "failed to create ingress", "ingress", ingress)
 			return err
 		}
