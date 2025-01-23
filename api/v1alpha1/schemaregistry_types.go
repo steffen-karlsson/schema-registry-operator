@@ -119,6 +119,10 @@ type SchemaRegistryStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Compatibility Level",type="string",JSONPath=".spec.compatibilityLevel",description="The compatibility level of the schema registry"
+// +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",description="The number of Coherence Pods for this role"
+// +kubebuilder:printcolumn:name="Ready",type="integer",JSONPath=".status.readyReplicas",description="The number of ready Coherence Pods for this role"
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status",description="The status of this role"
 
 // SchemaRegistry is the Schema for the schemaregistries API
 type SchemaRegistry struct {

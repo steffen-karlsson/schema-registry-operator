@@ -14,7 +14,24 @@ spec:
     singular: schemaregistry
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The compatibility level of the schema registry
+      jsonPath: .spec.compatibilityLevel
+      name: Compatibility Level
+      type: string
+    - description: The number of Coherence Pods for this role
+      jsonPath: .spec.replicas
+      name: Replicas
+      type: integer
+    - description: The number of ready Coherence Pods for this role
+      jsonPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    - description: The status of this role
+      jsonPath: .status.status
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: SchemaRegistry is the Schema for the schemaregistries API
