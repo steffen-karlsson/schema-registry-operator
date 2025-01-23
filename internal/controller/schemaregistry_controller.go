@@ -112,12 +112,15 @@ func (r *SchemaRegistryReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// The purpose is to create a deployment for the SchemaRegistry
 	found := &appsv1.Deployment{}
 	err = r.Get(ctx, types.NamespacedName{Name: schemaRegistry.Name, Namespace: schemaRegistry.Namespace}, found)
-	logger.Info(req.Name + ":" + req.Namespace)
-	if err != nil {
-		exists := !apierrors.IsNotFound(err)
-		if err = r.deploySchemaRegistry(ctx, schemaRegistry, exists, logger); err != nil {
-			return ctrl.Result{}, err
-		}
+	isNotFound := apierrors.IsNotFound(err)
+
+	if err != nil && !isNotFound {
+		logger.Error(err, "failed to get deployment")
+		return ctrl.Result{}, err
+	}
+
+	if err = r.deploySchemaRegistry(ctx, schemaRegistry, !isNotFound, logger); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
