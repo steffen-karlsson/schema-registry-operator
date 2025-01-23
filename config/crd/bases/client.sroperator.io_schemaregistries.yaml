@@ -15,6 +15,10 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - description: The version of the schema registry
+      jsonPath: .spec.image.version
+      name: Version
+      type: string
     - description: The compatibility level of the schema registry
       jsonPath: .spec.compatibilityLevel
       name: Compatibility Level
@@ -23,13 +27,9 @@ spec:
       jsonPath: .spec.replicas
       name: Replicas
       type: integer
-    - description: The number of ready Coherence Pods for this role
-      jsonPath: .status.readyReplicas
+    - description: The readiness of the schema registry
+      jsonPath: .status.ready
       name: Ready
-      type: integer
-    - description: The status of this role
-      jsonPath: .status.status
-      name: Status
       type: string
     name: v1alpha1
     schema:
@@ -288,12 +288,15 @@ spec:
           status:
             description: SchemaRegistryStatus defines the observed state of SchemaRegistry
             properties:
-              compatibilityLevel:
-                description: Used to define the schema registry compatibility level
+              message:
+                description: Used to define the status message of the schema registry
                 type: string
-              schemaRegistryVersion:
-                description: Used to define the schema registry version
-                type: string
+              ready:
+                description: Used to define if the schema registry is ready
+                type: boolean
+            required:
+            - message
+            - ready
             type: object
         type: object
     served: true

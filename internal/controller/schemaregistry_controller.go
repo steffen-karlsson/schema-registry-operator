@@ -110,8 +110,8 @@ func (r *SchemaRegistryReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// The purpose is to create a deployment for the SchemaRegistry
-	found := &appsv1.Deployment{}
-	err = r.Get(ctx, types.NamespacedName{Name: schemaRegistry.Name, Namespace: schemaRegistry.Namespace}, found)
+	deployment := &appsv1.Deployment{}
+	err = r.Get(ctx, types.NamespacedName{Name: schemaRegistry.Name, Namespace: schemaRegistry.Namespace}, deployment)
 	isNotFound := apierrors.IsNotFound(err)
 
 	if err != nil && !isNotFound {
@@ -120,6 +120,19 @@ func (r *SchemaRegistryReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if err = r.deploySchemaRegistry(ctx, schemaRegistry, !isNotFound, logger); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if deployment.Status.ReadyReplicas == *deployment.Spec.Replicas {
+		schemaRegistry.Status.Ready = true
+		schemaRegistry.Status.Message = "Schema Registry is ready"
+	} else {
+		schemaRegistry.Status.Ready = false
+		schemaRegistry.Status.Message = "Schema Registry is not ready"
+	}
+
+	if err = r.Status().Update(ctx, schemaRegistry); err != nil {
+		logger.Error(err, "failed to update schema status")
 		return ctrl.Result{}, err
 	}
 

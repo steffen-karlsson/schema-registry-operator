@@ -110,19 +110,19 @@ type ValueFrom struct {
 
 // SchemaRegistryStatus defines the observed state of SchemaRegistry
 type SchemaRegistryStatus struct {
-	// Used to define the schema registry version
-	SchemaRegistryVersion string `json:"schemaRegistryVersion,omitempty"`
+	// Used to define the status message of the schema registry
+	Message string `json:"message"`
 
-	// Used to define the schema registry compatibility level
-	CompatibilityLevel string `json:"compatibilityLevel,omitempty"`
+	// Used to define if the schema registry is ready
+	Ready bool `json:"ready"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.image.version",description="The version of the schema registry"
 // +kubebuilder:printcolumn:name="Compatibility Level",type="string",JSONPath=".spec.compatibilityLevel",description="The compatibility level of the schema registry"
 // +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",description="The number of Coherence Pods for this role"
-// +kubebuilder:printcolumn:name="Ready",type="integer",JSONPath=".status.readyReplicas",description="The number of ready Coherence Pods for this role"
-// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status",description="The status of this role"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="The readiness of the schema registry"
 
 // SchemaRegistry is the Schema for the schemaregistries API
 type SchemaRegistry struct {
