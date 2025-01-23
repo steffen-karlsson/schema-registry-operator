@@ -340,7 +340,7 @@ undeploy-example: ## Undeploy the example CRD
 redeploy:
 	$(MAKE) docker-build
 	$(KIND) load docker-image $(IMG)
-	$(MAKE) undeploy-example
+	# $(MAKE) undeploy-example
 	$(MAKE) undeploy
 	$(MAKE) deploy
 	$(MAKE) deploy-example

@@ -29,7 +29,7 @@ spec:
   debug: true
   kafkaConfig:
     bootstrapServers:
-      - my-cluster-kafka-bootstrap:9092
+      - test-cluster-kafka-bootstrap:9091
     authentication:
       saslJaasConfig:
         valueFrom:
