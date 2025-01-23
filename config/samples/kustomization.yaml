@@ -2,4 +2,5 @@
 resources:
 - client_v1alpha1_schemaregistry.yaml
 - sasl_jaas_secret.yaml
+- client_v1alpha1_schemaversion.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

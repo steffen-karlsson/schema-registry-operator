@@ -22,6 +22,8 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the Project itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- schemaversion_editor_role.yaml
+- schemaversion_viewer_role.yaml
 - schema_editor_role.yaml
 - schema_viewer_role.yaml
 - schemaregistry_editor_role.yaml
