@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
+	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
 )
 
 var _ = Describe("Schema Controller", func() {
@@ -77,7 +78,7 @@ var _ = Describe("Schema Controller", func() {
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &SchemaReconciler{
-				Client: k8sClient,
+				Client: *k8s_manager.NewClient(k8sClient),
 				Scheme: k8sClient.Scheme(),
 			}
 
