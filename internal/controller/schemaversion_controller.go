@@ -29,15 +29,15 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
+	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
 )
 
 // SchemaVersionReconciler reconciles a SchemaVersion object
 type SchemaVersionReconciler struct {
-	client.Client
+	k8s_manager.Client
 	Scheme *runtime.Scheme
 }
 

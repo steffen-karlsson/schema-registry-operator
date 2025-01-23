@@ -27,7 +27,6 @@ package controller
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -37,20 +36,22 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
+	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
+	"github.com/steffen-karlsson/schema-registry-operator/pkg/srclient"
 )
 
 // SchemaReconciler reconciles a Schema object
 type SchemaReconciler struct {
-	client.Client
+	k8s_manager.Client
 	Scheme *runtime.Scheme
 }
 
 const (
 	SchemaRegistryLabelName = "client.sroperator.io/instance"
+	SchemaVersionLatest     = "latest"
 )
 
 // +kubebuilder:rbac:groups=client.sroperator.io,resources=schemas,verbs=get;list;watch;create;update;patch;delete
@@ -162,17 +163,46 @@ func (r *SchemaReconciler) deploySchema(
 	exists bool,
 	logger logr.Logger,
 ) error {
+	var version int32 = 1
+
+	if exists {
+		srClient, err := srclient.NewClientWithResponses(schemaRegistry.Name)
+		if err != nil {
+			logger.Error(err, "failed to create schema registry client")
+			return err
+		}
+
+		resp, err := srClient.GetSchemaByVersion1WithResponse(ctx, schema.GetSubject(), SchemaVersionLatest, nil)
+		if err != nil || resp.HTTPResponse.StatusCode != 200 {
+			logger.Error(err, "failed to get latest schema version")
+			return err
+		}
+
+		version = *resp.ApplicationvndSchemaregistryV1JSON200.Version + 1
+	}
+
+	schemaVersion := r.createSchemaVersion(schema, version)
+	if err := ctrl.SetControllerReference(schema, &schemaVersion, r.Scheme); err != nil {
+		logger.Error(err, "failed to set controller reference", "schemaversion", schemaVersion)
+		return err
+	}
+
+	if err := r.Upsert(ctx, &schemaVersion, exists); err != nil {
+		logger.Error(err, "failed to create deployment", "schemaversion", schemaVersion)
+		return err
+	}
+
 	return nil
 }
 
-func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, version int) clientv1alpha1.SchemaVersion {
+func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, version int32) clientv1alpha1.SchemaVersion {
 	return clientv1alpha1.SchemaVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      schema.Name,
 			Namespace: schema.Namespace,
 		},
 		Spec: clientv1alpha1.SchemaVersionSpec{
-			Subject: schema.Name + "-" + strings.ToLower(schema.Spec.Type),
+			Subject: schema.GetSubject(),
 			Version: version,
 			Content: schema.Spec.Content,
 		},

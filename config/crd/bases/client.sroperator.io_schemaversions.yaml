@@ -48,6 +48,7 @@ spec:
                 type: string
               version:
                 description: Used to define the schema version
+                format: int32
                 type: integer
             required:
             - content

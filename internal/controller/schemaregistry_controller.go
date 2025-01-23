@@ -40,10 +40,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
+	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
 )
 
 const (
@@ -63,17 +63,8 @@ ssl: false`
 
 // SchemaRegistryReconciler reconciles a SchemaRegistry object
 type SchemaRegistryReconciler struct {
-	client.Client
+	k8s_manager.Client
 	Scheme *runtime.Scheme
-}
-
-// Upsert creates or updates the given object in the cluster
-func (r *SchemaRegistryReconciler) Upsert(ctx context.Context, obj client.Object, exists bool) error {
-	if exists {
-		return r.Update(ctx, obj)
-	}
-
-	return r.Create(ctx, obj)
 }
 
 // +kubebuilder:rbac:groups=client.sroperator.io,resources=schemaregistries,verbs=get;list;watch;create;update;patch;delete

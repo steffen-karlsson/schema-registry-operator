@@ -25,6 +25,8 @@ SOFTWARE.
 package v1alpha1
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -83,4 +85,8 @@ type SchemaList struct {
 
 func init() {
 	SchemeBuilder.Register(&Schema{}, &SchemaList{})
+}
+
+func (s *Schema) GetSubject() string {
+	return s.Name + "-" + strings.ToLower(s.Spec.Type)
 }

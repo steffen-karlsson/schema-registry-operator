@@ -45,6 +45,7 @@ import (
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
 	"github.com/steffen-karlsson/schema-registry-operator/internal/controller"
+	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -153,21 +154,21 @@ func main() {
 	}
 
 	if err = (&controller.SchemaRegistryReconciler{
-		Client: mgr.GetClient(),
+		Client: *k8s_manager.NewClient(mgr.GetClient()),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SchemaRegistry")
 		os.Exit(1)
 	}
 	if err = (&controller.SchemaReconciler{
-		Client: mgr.GetClient(),
+		Client: *k8s_manager.NewClient(mgr.GetClient()),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Schema")
 		os.Exit(1)
 	}
 	if err = (&controller.SchemaVersionReconciler{
-		Client: mgr.GetClient(),
+		Client: *k8s_manager.NewClient(mgr.GetClient()),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SchemaVersion")

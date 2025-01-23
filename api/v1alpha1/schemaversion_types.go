@@ -37,7 +37,7 @@ type SchemaVersionSpec struct {
 	Content string `json:"content"`
 
 	// Used to define the schema version
-	Version int `json:"version"`
+	Version int32 `json:"version"`
 }
 
 // SchemaVersionStatus defines the observed state of SchemaVersion
