@@ -14,7 +14,24 @@ spec:
     singular: schema
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The target of the schema
+      jsonPath: .spec.target
+      name: Target
+      type: string
+    - description: The type of the schema
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: The compatibility level of the schema
+      jsonPath: .spec.compatibilityLevel
+      name: Compatibility Level
+      type: string
+    - description: The readiness of the schema
+      jsonPath: .status.ready
+      name: Ready
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Schema is the Schema for the schemas API
@@ -47,10 +64,6 @@ spec:
               content:
                 description: Used to define the schema content
                 type: string
-              name:
-                description: Used to define the schema name, should match a topic
-                  name, if the schema should be attached to the topic
-                type: string
               target:
                 description: Used to define the schema target, one of VALUE (default),
                   KEY
@@ -62,7 +75,6 @@ spec:
             required:
             - compatibilityLevel
             - content
-            - name
             - target
             - type
             type: object

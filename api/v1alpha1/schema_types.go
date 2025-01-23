@@ -30,9 +30,6 @@ import (
 
 // SchemaSpec defines the desired state of Schema
 type SchemaSpec struct {
-	// Used to define the schema name, should match a topic name, if the schema should be attached to the topic
-	Name string `json:"name"`
-
 	// Used to define the schema target, one of VALUE (default), KEY
 	Target string `json:"target,oneOf=KEY,VALUE" default:"VALUE"`
 
@@ -60,6 +57,11 @@ type SchemaStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Target",type="string",JSONPath=".spec.target",description="The target of the schema"
+// +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="The type of the schema"
+// +kubebuilder:printcolumn:name="Compatibility Level",type="string",JSONPath=".spec.compatibilityLevel",description="The compatibility level of the schema"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="The readiness of the schema"
 
 // Schema is the Schema for the schemas API
 type Schema struct {

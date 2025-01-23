@@ -4,6 +4,26 @@ metadata:
   labels:
     app.kubernetes.io/name: schema-registry-operator
     app.kubernetes.io/managed-by: kustomize
+    client.sroperator.io/instance: schemaregistry-sample
   name: schema-sample
+  namespace: schema-registry-operator-system
 spec:
-  # TODO(user): Add fields here
+  target: VALUE
+  type: AVRO
+  compatibilityLevel: BACKWARD
+  content: |
+    {
+        "type": "record",
+        "name": "test",
+        "fields": [
+            {
+                "type": "string",
+                "name": "field1"
+            },
+            {
+                "type": "int",
+                "name": "field2"
+            }
+        ]
+    }
+

@@ -172,7 +172,7 @@ func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, ve
 			Namespace: schema.Namespace,
 		},
 		Spec: clientv1alpha1.SchemaVersionSpec{
-			Subject: schema.Spec.Name + "-" + strings.ToLower(schema.Spec.Type),
+			Subject: schema.Name + "-" + strings.ToLower(schema.Spec.Type),
 			Version: version,
 			Content: schema.Spec.Content,
 		},
