@@ -27,6 +27,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -198,7 +199,7 @@ func (r *SchemaReconciler) deploySchema(
 func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, version int32) clientv1alpha1.SchemaVersion {
 	return clientv1alpha1.SchemaVersion{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      schema.Name,
+			Name:      schema.Name + "-v" + strconv.Itoa(int(version)),
 			Namespace: schema.Namespace,
 		},
 		Spec: clientv1alpha1.SchemaVersionSpec{

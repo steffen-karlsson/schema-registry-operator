@@ -62,13 +62,13 @@ spec:
                 description: Used to define whether the schema is active, i.e. the
                   latest version
                 type: boolean
-              appliedToSchemaRegistry:
+              ready:
                 description: Used to define whether the schema is applied to the schema
                   registry
                 type: boolean
             required:
             - active
-            - appliedToSchemaRegistry
+            - ready
             type: object
         type: object
     served: true

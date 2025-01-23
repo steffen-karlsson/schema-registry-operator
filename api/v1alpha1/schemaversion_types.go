@@ -43,7 +43,7 @@ type SchemaVersionSpec struct {
 // SchemaVersionStatus defines the observed state of SchemaVersion
 type SchemaVersionStatus struct {
 	// Used to define whether the schema is applied to the schema registry
-	AppliedToSchemaRegistry bool `json:"appliedToSchemaRegistry"`
+	Ready bool `json:"ready"`
 
 	// Used to define whether the schema is active, i.e. the latest version
 	Active bool `json:"active"`
@@ -62,6 +62,10 @@ type SchemaVersion struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Subject",type="string",JSONPath=".spec.subject",description="The schema subject"
+// +kubebuilder:printcolumn:name="Version",type="integer",JSONPath=".spec.version",description="The schema version"
+// +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".status.active",description="Whether the schema is active"
+// +kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready",description="Whether the schema is ready"
 
 // SchemaVersionList contains a list of SchemaVersion
 type SchemaVersionList struct {
