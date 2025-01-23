@@ -72,8 +72,16 @@ spec:
               latestVersion:
                 description: Used to define the latest version of the schema
                 type: integer
+              message:
+                description: Used to define the status message of the schema
+                type: string
+              ready:
+                description: Used to define if the schema is ready
+                type: boolean
             required:
             - latestVersion
+            - message
+            - ready
             type: object
         type: object
     served: true

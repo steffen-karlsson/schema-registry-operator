@@ -50,6 +50,12 @@ type SchemaSpec struct {
 type SchemaStatus struct {
 	// Used to define the latest version of the schema
 	LatestVersion int `json:"latestVersion"`
+
+	// Used to define the status message of the schema
+	Message string `json:"message"`
+
+	// Used to define if the schema is ready
+	Ready bool `json:"ready"`
 }
 
 // +kubebuilder:object:root=true
