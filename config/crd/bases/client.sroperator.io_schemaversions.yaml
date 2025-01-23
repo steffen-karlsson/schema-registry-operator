@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
-  name: schemas.client.sroperator.io
+  name: schemaversions.client.sroperator.io
 spec:
   group: client.sroperator.io
   names:
-    kind: Schema
-    listKind: SchemaList
-    plural: schemas
-    singular: schema
+    kind: SchemaVersion
+    listKind: SchemaVersionList
+    plural: schemaversions
+    singular: schemaversion
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Schema is the Schema for the schemas API
+        description: SchemaVersion is the Schema for the schemaversions API
         properties:
           apiVersion:
             description: |-
@@ -37,43 +37,37 @@ spec:
           metadata:
             type: object
           spec:
-            description: SchemaSpec defines the desired state of Schema
+            description: SchemaVersionSpec defines the desired state of SchemaVersion
             properties:
-              compatibilityLevel:
-                description: Used to define the compatibility level of the schema,
-                  one of NONE (default), BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE,
-                  FULL, FULL_TRANSITIVE
-                type: string
               content:
                 description: Used to define the schema content
                 type: string
-              name:
-                description: Used to define the schema name, should match a topic
-                  name, if the schema should be attached to the topic
+              subject:
+                description: Used to define the schema subject, concatenated with
+                  the schema name and target
                 type: string
-              target:
-                description: Used to define the schema target, one of VALUE (default),
-                  KEY
-                type: string
-              type:
-                description: Used to define the schema type, one of AVRO (default),
-                  PROTOBUF, JSON
-                type: string
-            required:
-            - compatibilityLevel
-            - content
-            - name
-            - target
-            - type
-            type: object
-          status:
-            description: SchemaStatus defines the observed state of Schema
-            properties:
-              latestVersion:
-                description: Used to define the latest version of the schema
+              version:
+                description: Used to define the schema version
                 type: integer
             required:
-            - latestVersion
+            - content
+            - subject
+            - version
+            type: object
+          status:
+            description: SchemaVersionStatus defines the observed state of SchemaVersion
+            properties:
+              active:
+                description: Used to define whether the schema is active, i.e. the
+                  latest version
+                type: boolean
+              appliedToSchemaRegistry:
+                description: Used to define whether the schema is applied to the schema
+                  registry
+                type: boolean
+            required:
+            - active
+            - appliedToSchemaRegistry
             type: object
         type: object
     served: true

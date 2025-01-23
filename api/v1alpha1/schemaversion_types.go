@@ -28,22 +28,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // SchemaVersionSpec defines the desired state of SchemaVersion
 type SchemaVersionSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Used to define the schema subject, concatenated with the schema name and target
+	Subject string `json:"subject"`
 
-	// Foo is an example field of SchemaVersion. Edit schemaversion_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Used to define the schema content
+	Content string `json:"content"`
+
+	// Used to define the schema version
+	Version int `json:"version"`
 }
 
 // SchemaVersionStatus defines the observed state of SchemaVersion
 type SchemaVersionStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Used to define whether the schema is applied to the schema registry
+	AppliedToSchemaRegistry bool `json:"appliedToSchemaRegistry"`
+
+	// Used to define whether the schema is active, i.e. the latest version
+	Active bool `json:"active"`
 }
 
 // +kubebuilder:object:root=true

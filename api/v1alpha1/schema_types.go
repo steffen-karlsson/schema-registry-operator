@@ -28,22 +28,28 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // SchemaSpec defines the desired state of Schema
 type SchemaSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Used to define the schema name, should match a topic name, if the schema should be attached to the topic
+	Name string `json:"name"`
 
-	// Foo is an example field of Schema. Edit schema_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Used to define the schema target, one of VALUE (default), KEY
+	Target string `json:"target,oneOf=KEY,VALUE" default:"VALUE"`
+
+	// Used to define the schema type, one of AVRO (default), PROTOBUF, JSON
+	Type string `json:"type,oneOf=AVRO,PROTOBUF,JSON" default:"AVRO"`
+
+	// Used to define the schema content
+	Content string `json:"content"`
+
+	// Used to define the compatibility level of the schema, one of NONE (default), BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE
+	CompatibilityLevel string `json:"compatibilityLevel,oneOf=NONE,BACKWARD,BACKWARD_TRANSITIVE,FORWARD,FORWARD_TRANSITIVE,FULL,FULL_TRANSITIVE" default:"NONE"`
 }
 
 // SchemaStatus defines the observed state of Schema
 type SchemaStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Used to define the latest version of the schema
+	LatestVersion int `json:"latestVersion"`
 }
 
 // +kubebuilder:object:root=true
