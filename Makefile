@@ -326,6 +326,11 @@ catalog-push: ## Push a catalog image.
 
 # ================ Custom targets
 
+# Generate clients
+.PHONY: generate-clients
+generate-clients: ## Generate clients
+	@go generate ./pkg/srclient
+
 # Deploy the example CRD
 .PHONY: deploy-example
 deploy-example: ## Deploy the example CRD
