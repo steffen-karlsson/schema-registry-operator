@@ -88,5 +88,5 @@ func init() {
 }
 
 func (s *Schema) GetSubject() string {
-	return s.Name + "-" + strings.ToLower(s.Spec.Type)
+	return s.Name + "-" + strings.ToLower(s.Spec.Target)
 }
