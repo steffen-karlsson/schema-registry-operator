@@ -51,6 +51,10 @@ type SchemaVersionStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Subject",type="string",JSONPath=".spec.subject",description="The schema subject"
+// +kubebuilder:printcolumn:name="Version",type="integer",JSONPath=".spec.version",description="The schema version"
+// +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".status.active",description="Whether the schema is active"
+// +kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready",description="Whether the schema is ready"
 
 // SchemaVersion is the Schema for the schemaversions API
 type SchemaVersion struct {
@@ -62,10 +66,6 @@ type SchemaVersion struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:printcolumn:name="Subject",type="string",JSONPath=".spec.subject",description="The schema subject"
-// +kubebuilder:printcolumn:name="Version",type="integer",JSONPath=".spec.version",description="The schema version"
-// +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".status.active",description="Whether the schema is active"
-// +kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready",description="Whether the schema is ready"
 
 // SchemaVersionList contains a list of SchemaVersion
 type SchemaVersionList struct {

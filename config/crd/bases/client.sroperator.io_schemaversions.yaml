@@ -14,7 +14,24 @@ spec:
     singular: schemaversion
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The schema subject
+      jsonPath: .spec.subject
+      name: Subject
+      type: string
+    - description: The schema version
+      jsonPath: .spec.version
+      name: Version
+      type: integer
+    - description: Whether the schema is active
+      jsonPath: .status.active
+      name: Active
+      type: boolean
+    - description: Whether the schema is ready
+      jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: SchemaVersion is the Schema for the schemaversions API
