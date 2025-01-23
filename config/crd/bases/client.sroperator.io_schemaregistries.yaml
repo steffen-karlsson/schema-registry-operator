@@ -15,9 +15,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The version of the schema registry
-      jsonPath: .spec.image.version
-      name: Version
+    - description: The tag of the schema registry
+      jsonPath: .spec.image.tag
+      name: Tag
       type: string
     - description: The compatibility level of the schema registry
       jsonPath: .spec.compatibilityLevel

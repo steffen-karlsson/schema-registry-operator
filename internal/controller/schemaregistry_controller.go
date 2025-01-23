@@ -260,7 +260,7 @@ func (r *SchemaRegistryReconciler) createSchemaRegistryDeployment(sr *clientv1al
 	containers := []corev1.Container{
 		{
 			Name:            SchemaRegistryPodName,
-			Image:           sr.Spec.Image.Repository + ":" + sr.Spec.Image.Version,
+			Image:           sr.Spec.Image.Repository + ":" + sr.Spec.Image.Tag,
 			ImagePullPolicy: *sr.Spec.Image.PullPolicy,
 			Ports: []corev1.ContainerPort{
 				{

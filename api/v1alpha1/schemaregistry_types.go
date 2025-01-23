@@ -60,7 +60,7 @@ type SchemaRegistrySpec struct {
 
 type ContainerImage struct {
 	// Used to define the version of the schema registry
-	Version string `json:"tag,omitempty"`
+	Tag string `json:"tag,omitempty"`
 
 	// Used to define the repository where the image is stored
 	Repository string `json:"repository,omitempty"`
@@ -119,7 +119,7 @@ type SchemaRegistryStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.image.version",description="The version of the schema registry"
+// +kubebuilder:printcolumn:name="Tag",type="string",JSONPath=".spec.image.tag",description="The tag of the schema registry"
 // +kubebuilder:printcolumn:name="Compatibility Level",type="string",JSONPath=".spec.compatibilityLevel",description="The compatibility level of the schema registry"
 // +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",description="The number of Coherence Pods for this role"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="The readiness of the schema registry"
