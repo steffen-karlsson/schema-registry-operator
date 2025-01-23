@@ -30,3 +30,6 @@ go.work.sum
 # Artifacts
 /dist
 /bin
+
+# OpenAPI generated code
+*.gen.go

@@ -1,0 +1,4 @@
+package: srclient
+generate:
+  client: true
+output: client.gen.go

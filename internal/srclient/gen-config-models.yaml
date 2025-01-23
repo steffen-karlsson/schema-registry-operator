@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/deepmap/oapi-codegen/HEAD/configuration-schema.json
+package: srclient
+generate:
+  models: true
+output: models.gen.go
+compatibility:
+  always-prefix-enum-values: true
