@@ -30,12 +30,15 @@ import (
 
 // SchemaVersionSpec defines the desired state of SchemaVersion
 type SchemaVersionSpec struct {
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Subject is immutable"
 	// Used to define the schema subject, concatenated with the schema name and target
 	Subject string `json:"subject"`
 
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Content is immutable"
 	// Used to define the schema content
 	Content string `json:"content"`
 
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Version is immutable"
 	// Used to define the schema version
 	Version int32 `json:"version"`
 }
