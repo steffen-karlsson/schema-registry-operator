@@ -31,7 +31,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -89,16 +88,6 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// The purpose is to create a deployment for the Schema
-	found := &appsv1.Deployment{}
-	err = r.Get(ctx, types.NamespacedName{Name: schema.Name, Namespace: schema.Namespace}, found)
-	isNotFound := apierrors.IsNotFound(err)
-
-	if err != nil && !isNotFound {
-		logger.Error(err, "failed to get deployment")
-		return ctrl.Result{}, err
-	}
-
 	// The purpose is to check if the schema content has changed
 	newContentHash, err := hash.Hash(schema.Spec.Content)
 	if err != nil {
@@ -106,14 +95,13 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	contentHash, ok := schema.ObjectMeta.Labels[SchemaRegistryContentHash]
-	if ok && contentHash == strconv.Itoa(int(newContentHash)) {
+	contentHash, exists := schema.ObjectMeta.Labels[SchemaRegistryContentHash]
+	if exists && contentHash == strconv.Itoa(int(newContentHash)) {
 		// No need to update the schema if the content hash is the same
 		if err = r.updateStatusSuccessfully(ctx, schema); err != nil {
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
-		
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	}
 
@@ -146,7 +134,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	if err = r.deploySchema(ctx, &schemaRegistry, schema, !isNotFound, logger); err != nil {
+	if err = r.deploySchema(ctx, &schemaRegistry, schema, exists, logger); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -196,6 +184,8 @@ func (r *SchemaReconciler) deploySchema(
 ) error {
 	var version int32 = 1
 
+	logger.Info("deploying schema", "schema", schema.Name)
+	logger.Info("exists", "exists", exists)
 	if exists {
 		srClient, err := srclient.NewClientWithResponses(schemaRegistry.Name)
 		if err != nil {
