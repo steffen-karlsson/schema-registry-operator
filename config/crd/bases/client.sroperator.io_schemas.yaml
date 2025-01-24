@@ -68,10 +68,16 @@ spec:
                 description: Used to define the schema target, one of VALUE (default),
                   KEY
                 type: string
+                x-kubernetes-validations:
+                - message: Target is immutable
+                  rule: self == oldSelf
               type:
                 description: Used to define the schema type, one of AVRO (default),
                   PROTOBUF, JSON
                 type: string
+                x-kubernetes-validations:
+                - message: Type is immutable
+                  rule: self == oldSelf
             required:
             - compatibilityLevel
             - content
