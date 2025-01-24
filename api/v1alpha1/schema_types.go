@@ -32,9 +32,11 @@ import (
 
 // SchemaSpec defines the desired state of Schema
 type SchemaSpec struct {
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Target is immutable"
 	// Used to define the schema target, one of VALUE (default), KEY
 	Target string `json:"target,oneOf=KEY,VALUE" default:"VALUE"`
 
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Type is immutable"
 	// Used to define the schema type, one of AVRO (default), PROTOBUF, JSON
 	Type string `json:"type,oneOf=AVRO,PROTOBUF,JSON" default:"AVRO"`
 
