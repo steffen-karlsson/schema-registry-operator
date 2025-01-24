@@ -1,6 +1,6 @@
 ## Append samples of your project ##
 resources:
-- ./strimzi-kafka-crds
+- ../strimzi-kafka-crds
 - ./strimzi-kafka-cluster
 - client_v1alpha1_schemaregistry.yaml
 - sasl_jaas_secret.yaml
