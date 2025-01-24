@@ -114,7 +114,7 @@ func (r *SchemaRegistryReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	if deployment.Status.ReadyReplicas == *deployment.Spec.Replicas {
+	if deployment.Spec.Replicas != nil && (deployment.Status.ReadyReplicas == *deployment.Spec.Replicas) {
 		schemaRegistry.Status.Ready = true
 		schemaRegistry.Status.Message = "Schema Registry is ready"
 	} else {
