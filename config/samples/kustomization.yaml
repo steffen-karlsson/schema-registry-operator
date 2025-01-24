@@ -2,8 +2,9 @@
 resources:
 - ./strimzi-kafka-crds
 - ./strimzi-kafka-cluster
-- client_v1alpha1_schemaregistry.yaml
+- client_v1alpha1_schemaregistry_tls.yaml
 - sasl_jaas_secret.yaml
 - client_v1alpha1_schemaversion.yaml
 - client_v1alpha1_schema.yaml
+- tls_dummy_cert_secret.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

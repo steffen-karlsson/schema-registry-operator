@@ -88,6 +88,15 @@ spec:
                   host:
                     description: Used to define the host
                     type: string
+                  tls:
+                    description: Used to define the path to tls certificate
+                    properties:
+                      certSecretName:
+                        description: Used to define the secret name
+                        type: string
+                    required:
+                    - certSecretName
+                    type: object
                 type: object
               kafkaConfig:
                 description: Used to define the Kafka configuration

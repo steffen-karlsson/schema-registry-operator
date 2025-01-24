@@ -76,6 +76,15 @@ type SchemaRegistryIngress struct {
 
 	// Used to define the host
 	Host string `json:"host,omitempty"`
+
+	// Used to define the path to tls certificate
+	Tls *SchemaRegistryIngressTLS `json:"tls,omitempty"`
+}
+
+// SchemaRegistryIngressTLS defines the desired state of the tls
+type SchemaRegistryIngressTLS struct {
+	// Used to define the secret name
+	CertSecretName string `json:"certSecretName"`
 }
 
 // SchemaRegistryMetrics defines the desired state of the metrics

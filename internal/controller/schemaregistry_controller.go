@@ -355,7 +355,7 @@ func (r *SchemaRegistryReconciler) createSchemaRegistryService(sr *clientv1alpha
 }
 
 func (r *SchemaRegistryReconciler) createSchemaRegistryIngress(sr *clientv1alpha1.SchemaRegistry) *networkingv1.Ingress {
-	return &networkingv1.Ingress{
+	ingres := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sr.Name,
 			Namespace: sr.Namespace,
@@ -386,6 +386,17 @@ func (r *SchemaRegistryReconciler) createSchemaRegistryIngress(sr *clientv1alpha
 			},
 		},
 	}
+
+	tls := networkingv1.IngressTLS{}
+	if sr.Spec.Ingress.Tls != nil {
+		tls = networkingv1.IngressTLS{
+			Hosts:      []string{sr.Spec.Ingress.Host},
+			SecretName: sr.Spec.Ingress.Tls.CertSecretName,
+		}
+		ingres.Spec.TLS = []networkingv1.IngressTLS{tls}
+	}
+
+	return ingres
 }
 
 func (r *SchemaRegistryReconciler) createSchemaRegistryConfigMap(sr *clientv1alpha1.SchemaRegistry) *corev1.ConfigMap {
