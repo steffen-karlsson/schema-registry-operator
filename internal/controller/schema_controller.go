@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
+	"github.com/steffen-karlsson/schema-registry-operator/pkg/hash"
 	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
 	"github.com/steffen-karlsson/schema-registry-operator/pkg/srclient"
 )
@@ -98,6 +99,24 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	// The purpose is to check if the schema content has changed
+	newContentHash, err := hash.Hash(schema.Spec.Content)
+	if err != nil {
+		logger.Error(err, "failed to hash schema content")
+		return ctrl.Result{}, err
+	}
+
+	contentHash, ok := schema.ObjectMeta.Labels[SchemaRegistryContentHash]
+	if ok && contentHash == strconv.Itoa(int(newContentHash)) {
+		// No need to update the schema if the content hash is the same
+		if err = r.updateStatusSuccessfully(ctx, schema); err != nil {
+			logger.Error(err, "failed to update schema status")
+			return ctrl.Result{}, err
+		}
+		
+		return ctrl.Result{RequeueAfter: time.Minute}, nil
+	}
+
 	// The purpose is to get the SchemaRegistry instance
 	schemaRegistry, err := r.fetchSchemaRegistryInstance(ctx, schema)
 
@@ -131,15 +150,26 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	schema.Status.Ready = true
-	schema.Status.Message = "Schema deployed successfully"
+	schema.ObjectMeta.Labels[SchemaRegistryContentHash] = strconv.Itoa(int(newContentHash))
 
-	if err = r.Status().Update(ctx, schema); err != nil {
+	if err = r.Update(ctx, schema); err != nil {
+		logger.Error(err, "failed to update schema content hash")
+		return ctrl.Result{}, err
+	}
+
+	if err = r.updateStatusSuccessfully(ctx, schema); err != nil {
 		logger.Error(err, "failed to update schema status")
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
+}
+
+func (r *SchemaReconciler) updateStatusSuccessfully(ctx context.Context, schema *clientv1alpha1.Schema) error {
+	schema.Status.Ready = true
+	schema.Status.Message = "Schema deployed successfully"
+
+	return r.Status().Update(ctx, schema)
 }
 
 func (r *SchemaReconciler) fetchSchemaRegistryInstance(ctx context.Context, schema *clientv1alpha1.Schema) (clientv1alpha1.SchemaRegistry, error) {
