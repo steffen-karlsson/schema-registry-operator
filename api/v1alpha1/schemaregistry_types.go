@@ -35,38 +35,48 @@ type SchemaRegistrySpec struct {
 	// Used to define the version of the schema registry
 	Image ContainerImage `json:"image"`
 
+	// +kubebuilder:default:=1
+	// +kubebuilder:validation:Optional
 	// Used to define the number of replicas
-	Replicas int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas,omitempty" default:"1"`
 
+	// +kubebuilder:default:="NONE"
+	// +kubebuilder:validation:Optional
 	// Used to define the compatibility level of the schema registry, one of NONE (default), BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE
 	CompatibilityLevel string `json:"compatibilityLevel,omitempty,oneOf=NONE,BACKWARD,BACKWARD_TRANSITIVE,FORWARD,FORWARD_TRANSITIVE,FULL,FULL_TRANSITIVE" default:"NONE"`
 
-	// The desired compute resource requirements of Pods in the cluster.
 	// +kubebuilder:default:={limits: {cpu: "2000m", memory: "2Gi"}, requests: {cpu: "1000m", memory: "2Gi"}}
+	// +kubebuilder:validation:Optional
+	// The desired compute resource requirements of Pods in the cluster.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
-	// Used to define the ingress specifications of the schema registry
+	// +kubebuilder:validation:Optional
+	// Used to define the ingress specifications of the schema registry, default is disabled
 	Ingress SchemaRegistryIngress `json:"ingress,omitempty"`
 
-	// Used to define the metrics specifications of the schema registry
+	// +kubebuilder:validation:Optional
+	// Used to define the metrics specifications of the schema registry, default is disabled
 	Metrics SchemaRegistryMetrics `json:"metrics,omitempty"`
 
 	// Used to define the Kafka configuration
 	KafkaConfig KafkaConfig `json:"kafkaConfig,omitempty"`
 
-	// Used to define the debug mode
-	Debug bool `json:"debug,omitempty"`
+	// +kubebuilder:default:=false
+	// Used to define the debug mode, default is disabled
+	Debug bool `json:"debug,omitempty" default:"false"`
 }
 
 type ContainerImage struct {
 	// Used to define the version of the schema registry
-	Tag string `json:"tag,omitempty"`
+	Tag string `json:"tag"`
 
 	// Used to define the repository where the image is stored
-	Repository string `json:"repository,omitempty"`
+	Repository string `json:"repository"`
 
-	// Used to define the pull policy
-	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
+	// +kubebuilder:default:=IfNotPresent
+	// +kubebuilder:validation:Optional
+	// Used to define the pull policy, default is IfNotPresent
+	PullPolicy *corev1.PullPolicy `json:"pullPolicy" default:"IfNotPresent""`
 }
 
 // SchemaRegistryIngress defines the desired state of the ingress
@@ -99,19 +109,19 @@ type SchemaRegistryMetrics struct {
 // KafkaConfig defines the desired state of the Kafka configuration
 type KafkaConfig struct {
 	// Used to define the Kafka bootstrap servers
-	BootstrapServers []string `json:"bootstrapServers,omitempty"`
+	BootstrapServers []string `json:"bootstrapServers"`
 
 	// Used to define the Kafka authentication
-	Authentication KafkaConfigAuthentication `json:"authentication,omitempty"`
+	Authentication KafkaConfigAuthentication `json:"authentication"`
 }
 
 // KafkaConfigAuthentication defines the desired state of the Kafka authentication
 type KafkaConfigAuthentication struct {
 	// Used to define the type of authentication
-	SaslJaasConfig ValueFrom `json:"saslJaasConfig,omitempty"`
+	SaslJaasConfig ValueFrom `json:"saslJaasConfig"`
 }
 
-// type ValueFrom defines the desired state of the value from
+// ValueFrom defines the desired state of the value from
 type ValueFrom struct {
 	// Used to define the value from the field
 	Source *corev1.EnvVarSource `json:"valueFrom,omitempty"`

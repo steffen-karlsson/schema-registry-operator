@@ -57,6 +57,7 @@ spec:
             description: SchemaSpec defines the desired state of Schema
             properties:
               compatibilityLevel:
+                default: NONE
                 description: Used to define the compatibility level of the schema,
                   one of NONE (default), BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE,
                   FULL, FULL_TRANSITIVE
@@ -64,7 +65,13 @@ spec:
               content:
                 description: Used to define the schema content
                 type: string
+              normalize:
+                default: false
+                description: Used to define if the schema should be normalized, default
+                  is false
+                type: boolean
               target:
+                default: VALUE
                 description: Used to define the schema target, one of VALUE (default),
                   KEY
                 type: string
@@ -72,6 +79,7 @@ spec:
                 - message: Target is immutable
                   rule: self == oldSelf
               type:
+                default: AVRO
                 description: Used to define the schema type, one of AVRO (default),
                   PROTOBUF, JSON
                 type: string
@@ -79,10 +87,7 @@ spec:
                 - message: Type is immutable
                   rule: self == oldSelf
             required:
-            - compatibilityLevel
             - content
-            - target
-            - type
             type: object
           status:
             description: SchemaStatus defines the observed state of Schema
@@ -96,10 +101,14 @@ spec:
               ready:
                 description: Used to define if the schema is ready
                 type: boolean
+              schemaRegistryError:
+                description: Used to define the schema registry error
+                type: string
             required:
             - latestVersion
             - message
             - ready
+            - schemaRegistryError
             type: object
         type: object
     served: true

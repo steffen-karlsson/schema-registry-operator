@@ -32,10 +32,14 @@ import (
 
 // SchemaSpec defines the desired state of Schema
 type SchemaSpec struct {
+	// +kubebuilder:default:="VALUE"
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Target is immutable"
 	// Used to define the schema target, one of VALUE (default), KEY
 	Target string `json:"target,oneOf=KEY,VALUE" default:"VALUE"`
 
+	// +kubebuilder:default:="AVRO"
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Type is immutable"
 	// Used to define the schema type, one of AVRO (default), PROTOBUF, JSON
 	Type string `json:"type,oneOf=AVRO,PROTOBUF,JSON" default:"AVRO"`
@@ -43,8 +47,15 @@ type SchemaSpec struct {
 	// Used to define the schema content
 	Content string `json:"content"`
 
+	// +kubebuilder:default:="NONE"
+	// +kubebuilder:validation:Optional
 	// Used to define the compatibility level of the schema, one of NONE (default), BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE
 	CompatibilityLevel string `json:"compatibilityLevel,oneOf=NONE,BACKWARD,BACKWARD_TRANSITIVE,FORWARD,FORWARD_TRANSITIVE,FULL,FULL_TRANSITIVE" default:"NONE"`
+
+	// +kubebuilder:default:=false
+	// +kubebuilder:validation:Optional
+	// Used to define if the schema should be normalized, default is false
+	Normalize bool `json:"normalize" default:"false"`
 }
 
 // SchemaStatus defines the observed state of Schema
@@ -54,6 +65,9 @@ type SchemaStatus struct {
 
 	// Used to define the status message of the schema
 	Message string `json:"message"`
+
+	// Used to define the schema registry error
+	SchemaRegistryError string `json:"schemaRegistryError"`
 
 	// Used to define if the schema is ready
 	Ready bool `json:"ready"`

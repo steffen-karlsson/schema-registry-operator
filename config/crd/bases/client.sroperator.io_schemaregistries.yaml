@@ -57,18 +57,21 @@ spec:
             description: SchemaRegistrySpec defines the desired state of SchemaRegistry
             properties:
               compatibilityLevel:
+                default: NONE
                 description: Used to define the compatibility level of the schema
                   registry, one of NONE (default), BACKWARD, BACKWARD_TRANSITIVE,
                   FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE
                 type: string
               debug:
-                description: Used to define the debug mode
+                default: false
+                description: Used to define the debug mode, default is disabled
                 type: boolean
               image:
                 description: Used to define the version of the schema registry
                 properties:
                   pullPolicy:
-                    description: Used to define the pull policy
+                    default: IfNotPresent
+                    description: Used to define the pull policy, default is IfNotPresent
                     type: string
                   repository:
                     description: Used to define the repository where the image is
@@ -77,10 +80,13 @@ spec:
                   tag:
                     description: Used to define the version of the schema registry
                     type: string
+                required:
+                - repository
+                - tag
                 type: object
               ingress:
                 description: Used to define the ingress specifications of the schema
-                  registry
+                  registry, default is disabled
                 properties:
                   enabled:
                     description: Used to define if the ingress is enabled
@@ -201,16 +207,21 @@ spec:
                                 x-kubernetes-map-type: atomic
                             type: object
                         type: object
+                    required:
+                    - saslJaasConfig
                     type: object
                   bootstrapServers:
                     description: Used to define the Kafka bootstrap servers
                     items:
                       type: string
                     type: array
+                required:
+                - authentication
+                - bootstrapServers
                 type: object
               metrics:
                 description: Used to define the metrics specifications of the schema
-                  registry
+                  registry, default is disabled
                 properties:
                   enabled:
                     description: Used to define if the metrics are enabled
@@ -221,6 +232,7 @@ spec:
                     type: integer
                 type: object
               replicas:
+                default: 1
                 description: Used to define the number of replicas
                 format: int32
                 type: integer
