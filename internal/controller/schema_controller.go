@@ -27,6 +27,8 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -41,6 +43,7 @@ import (
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
 	"github.com/steffen-karlsson/schema-registry-operator/pkg/hash"
 	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
+	"github.com/steffen-karlsson/schema-registry-operator/pkg/srclient"
 )
 
 // SchemaReconciler reconciles a Schema object
@@ -133,8 +136,34 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	version, err := r.deploySchema(ctx, &schemaRegistry, schema, logger)
+	version, err := r.deploySchema(ctx, schema, &schemaRegistry, logger)
 	if err != nil {
+		logger.Error(err, "failed to deploy schema to schema registry", "schema", schema)
+
+		schema.Status.Message = "Failed to deploy schema to Schema Registry: " + schemaRegistry.Name
+		schema.Status.Ready = false
+
+		if errors.Is(err, ErrIncompatibleSchema) || errors.Is(err, ErrInvalidSchemaOrType) {
+			schema.Status.SchemaRegistryError = errors.Unwrap(err).Error()
+		}
+
+		if err = r.Status().Update(ctx, schema); err != nil {
+			logger.Error(err, "failed to update schema status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, err
+	}
+
+	if err = r.deploySchemaVersion(ctx, schema, version, logger); err != nil {
+		logger.Error(err, "failed to create new SchemaVersion CRD", "schema", schema)
+
+		schema.Status.Message = "Failed to create new SchemaVersion CRD with version: " + strconv.Itoa(version)
+		schema.Status.Ready = false
+
+		if err = r.Status().Update(ctx, schema); err != nil {
+			logger.Error(err, "failed to update schema status")
+			return ctrl.Result{}, err
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -177,26 +206,60 @@ func (r *SchemaReconciler) fetchSchemaRegistryInstance(ctx context.Context, sche
 	return *schemaRegistry, err
 }
 
-func (r *SchemaReconciler) deploySchema(
+func (r *SchemaReconciler) deploySchemaVersion(
 	ctx context.Context,
-	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	schema *clientv1alpha1.Schema,
+	version int,
 	logger logr.Logger,
-) (int, error) {
-	version := max(1, schema.Status.LatestVersion) + 1
-
+) error {
 	schemaVersion := r.createSchemaVersion(schema, version)
 	if err := ctrl.SetControllerReference(schema, &schemaVersion, r.Scheme); err != nil {
 		logger.Error(err, "failed to set controller reference", "schemaversion", schemaVersion)
-		return 0, err
+		return err
 	}
 
 	if err := r.Upsert(ctx, &schemaVersion, false); err != nil {
 		logger.Error(err, "failed to create schemaversion", "schemaversion", schemaVersion)
+		return err
+	}
+
+	return nil
+}
+
+func (r *SchemaReconciler) deploySchema(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) (int, error) {
+	srClient, err := srclient.NewClientWithResponses(schemaRegistry.Name)
+	if err != nil {
+		logger.Error(err, "failed to create schema registry client")
 		return 0, err
 	}
 
-	return version, nil
+	resp, err := srClient.Register1WithResponse(ctx, schema.GetSubject(), &srclient.Register1Params{
+		Normalize: &schema.Spec.Normalize,
+	}, srclient.Register1JSONRequestBody{
+		Schema:     &schema.Spec.Content,
+		SchemaType: &schema.Spec.Type,
+	})
+
+	if err != nil {
+		logger.Error(err, "failed to register schema")
+		return 0, err
+	}
+
+	switch resp.HTTPResponse.StatusCode {
+	case http.StatusUnprocessableEntity:
+		return 0, NewInvalidSchemaOrTypeError(*resp.ApplicationvndSchemaregistryV1JSON422.Message)
+	case http.StatusConflict:
+		return 0, NewIncompatibleSchemaError(*resp.ApplicationvndSchemaregistryV1JSON409.Message)
+	case http.StatusOK:
+		return int(*resp.ApplicationvndSchemaregistryV1JSON200.Version), nil
+	}
+
+	return 0, fmt.Errorf("unknown error, failed to register schema: %d", resp.HTTPResponse.StatusCode)
 }
 
 func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, version int) clientv1alpha1.SchemaVersion {
