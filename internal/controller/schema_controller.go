@@ -41,7 +41,6 @@ import (
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
 	"github.com/steffen-karlsson/schema-registry-operator/pkg/hash"
 	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
-	"github.com/steffen-karlsson/schema-registry-operator/pkg/srclient"
 )
 
 // SchemaReconciler reconciles a Schema object
@@ -134,7 +133,8 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	if err = r.deploySchema(ctx, &schemaRegistry, schema, exists, logger); err != nil {
+	version, err := r.deploySchema(ctx, &schemaRegistry, schema, logger)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -144,6 +144,8 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		logger.Error(err, "failed to update schema content hash")
 		return ctrl.Result{}, err
 	}
+
+	schema.Status.LatestVersion = version
 
 	if err = r.updateStatusSuccessfully(ctx, schema); err != nil {
 		logger.Error(err, "failed to update schema status")
@@ -179,44 +181,25 @@ func (r *SchemaReconciler) deploySchema(
 	ctx context.Context,
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	schema *clientv1alpha1.Schema,
-	exists bool,
 	logger logr.Logger,
-) error {
-	var version int32 = 1
-
-	logger.Info("deploying schema", "schema", schema.Name)
-	logger.Info("exists", "exists", exists)
-	if exists {
-		srClient, err := srclient.NewClientWithResponses(schemaRegistry.Name)
-		if err != nil {
-			logger.Error(err, "failed to create schema registry client")
-			return err
-		}
-
-		resp, err := srClient.GetSchemaByVersion1WithResponse(ctx, schema.GetSubject(), SchemaVersionLatest, nil)
-		if err != nil || resp.HTTPResponse.StatusCode != 200 {
-			logger.Error(err, "failed to get latest schema version")
-			return err
-		}
-
-		version = *resp.ApplicationvndSchemaregistryV1JSON200.Version + 1
-	}
+) (int, error) {
+	version := max(1, schema.Status.LatestVersion) + 1
 
 	schemaVersion := r.createSchemaVersion(schema, version)
 	if err := ctrl.SetControllerReference(schema, &schemaVersion, r.Scheme); err != nil {
 		logger.Error(err, "failed to set controller reference", "schemaversion", schemaVersion)
-		return err
+		return 0, err
 	}
 
-	if err := r.Upsert(ctx, &schemaVersion, exists); err != nil {
-		logger.Error(err, "failed to create deployment", "schemaversion", schemaVersion)
-		return err
+	if err := r.Upsert(ctx, &schemaVersion, false); err != nil {
+		logger.Error(err, "failed to create schemaversion", "schemaversion", schemaVersion)
+		return 0, err
 	}
 
-	return nil
+	return version, nil
 }
 
-func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, version int32) clientv1alpha1.SchemaVersion {
+func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, version int) clientv1alpha1.SchemaVersion {
 	return clientv1alpha1.SchemaVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      schema.Name + "-v" + strconv.Itoa(int(version)),

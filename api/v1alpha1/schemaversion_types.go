@@ -40,7 +40,7 @@ type SchemaVersionSpec struct {
 
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Version is immutable"
 	// Used to define the schema version
-	Version int32 `json:"version"`
+	Version int `json:"version"`
 }
 
 // SchemaVersionStatus defines the observed state of SchemaVersion
