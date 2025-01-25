@@ -331,7 +331,7 @@ func (r *SchemaRegistryReconciler) createSchemaRegistryService(sr *clientv1alpha
 	ports := []corev1.ServicePort{
 		{
 			Name: SchemaRegistryHttpPortName,
-			Port: 8082,
+			Port: SchemaRegistryHttpPort,
 		},
 	}
 
