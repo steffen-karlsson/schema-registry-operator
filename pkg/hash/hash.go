@@ -5,6 +5,10 @@ import (
 	"hash/fnv"
 )
 
+type Hashable interface {
+	Hash() (uint32, error)
+}
+
 func Hash(s string) (uint32, error) {
 	h := fnv.New32a()
 	_, err := h.Write([]byte(s))

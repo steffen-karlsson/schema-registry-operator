@@ -41,9 +41,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
-	"github.com/steffen-karlsson/schema-registry-operator/pkg/hash"
 	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
 	"github.com/steffen-karlsson/schema-registry-operator/pkg/srclient"
+)
+
+const (
+	SchemaRegistryLabelName = "client.sroperator.io/instance"
 )
 
 // SchemaReconciler reconciles a Schema object
@@ -51,11 +54,6 @@ type SchemaReconciler struct {
 	k8s_manager.Client
 	Scheme *runtime.Scheme
 }
-
-const (
-	SchemaRegistryLabelName = "client.sroperator.io/instance"
-	SchemaVersionLatest     = "latest"
-)
 
 // +kubebuilder:rbac:groups=client.sroperator.io,resources=schemas,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=client.sroperator.io,resources=schemas/status,verbs=get;update;patch
@@ -91,19 +89,19 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// The purpose is to check if the schema content has changed
-	newContentHash, err := hash.Hash(schema.Spec.Content)
+	notUpdated, err := NotUpdated(schema.ObjectMeta, schema)
 	if err != nil {
-		logger.Error(err, "failed to hash schema content")
+		logger.Error(err, "failed to check if schema content has changed")
 		return ctrl.Result{}, err
 	}
 
-	contentHash, exists := schema.ObjectMeta.Labels[SchemaRegistryContentHash]
-	if exists && contentHash == strconv.Itoa(int(newContentHash)) {
+	if notUpdated {
 		// No need to update the schema if the content hash is the same
 		if err = r.updateStatusSuccessfully(ctx, schema); err != nil {
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
+
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	}
 
@@ -164,6 +162,12 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
+		return ctrl.Result{}, err
+	}
+
+	newContentHash, err := schema.Hash()
+	if err != nil {
+		logger.Error(err, "failed to hash schema content")
 		return ctrl.Result{}, err
 	}
 
@@ -232,7 +236,7 @@ func (r *SchemaReconciler) deploySchema(
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	logger logr.Logger,
 ) (int, error) {
-	srClient, err := srclient.NewClientWithResponses(schemaRegistry.Name)
+	srClient, err := srclient.NewClientWithResponses("http://" + schemaRegistry.Name)
 	if err != nil {
 		logger.Error(err, "failed to create schema registry client")
 		return 0, err

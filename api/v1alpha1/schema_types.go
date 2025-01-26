@@ -28,6 +28,8 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/steffen-karlsson/schema-registry-operator/pkg/hash"
 )
 
 // SchemaSpec defines the desired state of Schema
@@ -101,6 +103,10 @@ type SchemaList struct {
 
 func init() {
 	SchemeBuilder.Register(&Schema{}, &SchemaList{})
+}
+
+func (s *Schema) Hash() (uint32, error) {
+	return hash.Hash(s.Spec.Content)
 }
 
 func (s *Schema) GetSubject() string {
