@@ -26,12 +26,9 @@ package controller
 
 import (
 	"context"
-	"strconv"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
 	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
@@ -56,60 +53,6 @@ type SchemaVersionReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *SchemaVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-
-	// Fetch the SchemaVersion instance
-	schemaVersion := &clientv1alpha1.SchemaVersion{}
-	if err := r.Get(ctx, req.NamespacedName, schemaVersion); err != nil {
-		logger.Error(err, "unable to fetch SchemaVersion")
-		return ctrl.Result{}, err
-	}
-
-	// Update current state to active, as the SchemaVersion CRD cannot be mutated, we know it is a create operation
-	schemaVersion.Status.Active = true
-	schemaVersion.Status.Ready = true
-
-	if err := r.Status().Update(ctx, schemaVersion); err != nil {
-		logger.Error(err, "unable to update SchemaVersion status")
-		return ctrl.Result{}, err
-	}
-
-	// Update the previous active SchemaVersion to inactive
-	previousVersion, exists := schemaVersion.Annotations[PreviousActiveSchemaVersionAnnotationName]
-	if !exists {
-		logger.Error(ErrInvalidSchemaVersionModification, "unable to find previous active schema version")
-		return ctrl.Result{}, nil
-	}
-
-	previousVersionInt, err := strconv.Atoi(previousVersion)
-	if err != nil {
-		logger.Error(err, "unable to convert previous active schema version to int")
-		return ctrl.Result{}, err
-	}
-
-	if previousVersionInt == 0 {
-		return ctrl.Result{}, nil
-	}
-
-	oldSchemaNamespacedName := types.NamespacedName{
-		Namespace: req.Namespace,
-		Name:      schemaVersion.Spec.Subject + "-v" + strconv.Itoa(previousVersionInt),
-	}
-
-	oldSchemaVersion := &clientv1alpha1.SchemaVersion{}
-	if err = r.Get(ctx, oldSchemaNamespacedName, schemaVersion); err != nil {
-		logger.Error(err, "unable to fetch previous active SchemaVersion")
-		return ctrl.Result{}, err
-	}
-
-	oldSchemaVersion.Status.Active = false
-	oldSchemaVersion.Status.Ready = true
-
-	if err = r.Status().Update(ctx, schemaVersion); err != nil {
-		logger.Error(err, "unable to update previous active SchemaVersion status")
-		return ctrl.Result{}, err
-	}
-
 	return ctrl.Result{}, nil
 }
 
