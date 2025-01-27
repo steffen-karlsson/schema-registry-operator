@@ -26,9 +26,13 @@ package controller
 
 import (
 	"context"
+	"strconv"
 
+	"github.com/go-logr/logr"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
 	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
@@ -53,7 +57,62 @@ type SchemaVersionReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *SchemaVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+
+	// Fetch the SchemaVersion instance
+	schemaVersion := &clientv1alpha1.SchemaVersion{}
+	err := r.Get(ctx, req.NamespacedName, schemaVersion)
+	switch {
+	case apierrors.IsNotFound(err):
+		logger.Info("SchemaVersion resource not found. Ignoring since object must be deleted")
+
+		// The purpose is to get the SchemaRegistry instance
+		// Retry parameter is not used, as the instance label is set by operator automatically on creation
+		schemaRegistry, _, err := FetchSchemaRegistryInstance(ctx, r, schemaVersion.ObjectMeta, schemaVersion)
+		if err != nil {
+			logger.Error(err, "failed to get schema registry instance")
+
+			if err = r.Status().Update(ctx, schemaRegistry); err != nil {
+				logger.Error(err, "failed to update schema status")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, err
+		}
+
+		// Delete the schema version from the SchemaRegistry
+		if err = r.deleteSchema(ctx, schemaVersion, schemaRegistry, logger); err != nil {
+			logger.Error(err, "failed to delete schema",
+				"subject", schemaVersion.Spec.Subject,
+				"version", schemaVersion.Spec.Version)
+			return ctrl.Result{}, err
+		}
+	case err != nil:
+		logger.Error(err, "failed to get SchemaVersion", "name", req.Name)
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
+}
+
+func (r *SchemaVersionReconciler) deleteSchema(
+	ctx context.Context,
+	schemaVersion *clientv1alpha1.SchemaVersion,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) error {
+	srClient, err := schemaRegistry.NewInstance()
+	if err != nil {
+		logger.Error(err, "failed to create schema registry client")
+		return err
+	}
+
+	// Delete the schema from the SchemaRegistry
+	subject := schemaVersion.Spec.Subject
+	version := strconv.Itoa(schemaVersion.Spec.Version)
+	_, err = srClient.DeleteSchemaVersion1WithResponse(ctx, subject, version, nil)
+
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

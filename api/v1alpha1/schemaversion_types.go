@@ -54,6 +54,12 @@ type SchemaVersionStatus struct {
 
 	// Used to define whether the schema is active, i.e. the latest version
 	Active bool `json:"active"`
+
+	// Used to define the status message of the schema version
+	Message string `json:"message,omitempty"`
+
+	// Used to define the last transition time of the schema version
+	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
 }
 
 // +kubebuilder:object:root=true
@@ -82,4 +88,11 @@ type SchemaVersionList struct {
 
 func init() {
 	SchemeBuilder.Register(&SchemaVersion{}, &SchemaVersionList{})
+}
+
+// UpdateStatus updates the status of the schema
+func (s *SchemaVersion) UpdateStatus(ready bool, message string) {
+	s.Status.Ready = ready
+	s.Status.Message = message
+	s.Status.LastTransitionTime = metav1.Now()
 }
