@@ -231,6 +231,11 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              port:
+                default: "8082"
+                description: Used to define the port of the schema registry
+                format: int32
+                type: integer
               replicas:
                 default: 1
                 description: Used to define the number of replicas

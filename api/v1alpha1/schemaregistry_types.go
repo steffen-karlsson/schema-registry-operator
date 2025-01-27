@@ -45,6 +45,11 @@ type SchemaRegistrySpec struct {
 	// Used to define the compatibility level of the schema registry, one of NONE (default), BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE
 	CompatibilityLevel string `json:"compatibilityLevel,omitempty,oneOf=NONE,BACKWARD,BACKWARD_TRANSITIVE,FORWARD,FORWARD_TRANSITIVE,FULL,FULL_TRANSITIVE" default:"NONE"`
 
+	// +kubebuilder:default:="8082"
+	// +kubebuilder:validation:Optional
+	// Used to define the port of the schema registry
+	Port int32 `json:"port,omitempty" default:"8082"`
+
 	// +kubebuilder:default:={limits: {cpu: "2000m", memory: "2Gi"}, requests: {cpu: "1000m", memory: "2Gi"}}
 	// +kubebuilder:validation:Optional
 	// The desired compute resource requirements of Pods in the cluster.

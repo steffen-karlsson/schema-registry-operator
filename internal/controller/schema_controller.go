@@ -236,7 +236,8 @@ func (r *SchemaReconciler) deploySchema(
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	logger logr.Logger,
 ) (int, error) {
-	srClient, err := srclient.NewClientWithResponses("http://" + schemaRegistry.Name)
+	server := fmt.Sprintf("http://%s:%d", schemaRegistry.Name, schemaRegistry.Spec.Port)
+	srClient, err := srclient.NewClientWithResponses(server)
 	if err != nil {
 		logger.Error(err, "failed to create schema registry client")
 		return 0, err
@@ -260,7 +261,7 @@ func (r *SchemaReconciler) deploySchema(
 	case http.StatusConflict:
 		return 0, NewIncompatibleSchemaError(*resp.ApplicationvndSchemaregistryV1JSON409.Message)
 	case http.StatusOK:
-		return int(*resp.ApplicationvndSchemaregistryV1JSON200.Version), nil
+		return int(*resp.ApplicationvndSchemaregistryV1JSON200.Id), nil
 	}
 
 	return 0, fmt.Errorf("unknown error, failed to register schema: %d", resp.HTTPResponse.StatusCode)
