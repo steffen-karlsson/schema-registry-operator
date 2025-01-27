@@ -90,13 +90,13 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// The purpose is to check if the schema content has changed
-	notUpdated, err := NotUpdated(schema.ObjectMeta, schema)
+	updated, err := Updated(schema.ObjectMeta, schema)
 	if err != nil {
 		logger.Error(err, "failed to check if schema content has changed")
 		return ctrl.Result{}, err
 	}
 
-	if notUpdated {
+	if !updated && schema.Status.Ready {
 		// No need to update the schema if the content hash is the same
 		if err = r.updateStatusSuccessfully(ctx, schema); err != nil {
 			logger.Error(err, "failed to update schema status")
@@ -119,7 +119,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	case errors.Is(err, ErrInstanceLabelNotFound):
 		schema.Status.Message = "Instance label: " + SchemaRegistryLabelName + " not found"
 		schema.Status.Ready = false
@@ -132,7 +132,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	case err != nil:
 		logger.Error(err, "failed to get schema registry instance")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	srSchemaObject, err := r.deploySchema(ctx, schema, &schemaRegistry, logger)
@@ -150,7 +150,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	version := int(*srSchemaObject.Version)
@@ -165,7 +165,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	newContentHash, err := schema.Hash()
