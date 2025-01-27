@@ -85,6 +85,7 @@ spec:
                 - tag
                 type: object
               ingress:
+                default: {}
                 description: Used to define the ingress specifications of the schema
                   registry, default is disabled
                 properties:
@@ -220,6 +221,7 @@ spec:
                 - bootstrapServers
                 type: object
               metrics:
+                default: {}
                 description: Used to define the metrics specifications of the schema
                   registry, default is disabled
                 properties:
@@ -310,6 +312,7 @@ spec:
                 type: object
             required:
             - image
+            - kafkaConfig
             type: object
           status:
             description: SchemaRegistryStatus defines the observed state of SchemaRegistry

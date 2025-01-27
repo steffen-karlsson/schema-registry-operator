@@ -114,10 +114,19 @@ func init() {
 	SchemeBuilder.Register(&Schema{}, &SchemaList{})
 }
 
+// Hash calculates the hash of the schema content
 func (s *Schema) Hash() (uint32, error) {
 	return hash.Hash(s.Spec.Content)
 }
 
+// UpdateStatus updates the status of the schema
+func (s *Schema) UpdateStatus(ready bool, message string) {
+	s.Status.Ready = ready
+	s.Status.Message = message
+	s.Status.LastTransitionTime = metav1.Now()
+}
+
+// GetSubject returns the subject of the schema
 func (s *Schema) GetSubject() string {
 	return s.Spec.Subject + "-" + strings.ToLower(s.Spec.Target)
 }
