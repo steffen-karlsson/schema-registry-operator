@@ -46,9 +46,10 @@ import (
 )
 
 const (
-	SchemaRegistryLabelName = "client.sroperator.io/instance"
-	SchemaVersionLatest     = "latest"
-	SchemaDeployedSuccess   = "Schema deployed successfully"
+	SchemaRegistryLabelName                   = "client.sroperator.io/instance"
+	SchemaVersionLatest                       = "latest"
+	SchemaDeployedSuccess                     = "Schema deployed successfully"
+	PreviousActiveSchemaVersionAnnotationName = "client.sroperator.io/previous-active-schema-version"
 )
 
 // SchemaReconciler reconciles a Schema object
@@ -275,6 +276,9 @@ func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, sr
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      schema.Name + "-v" + strconv.Itoa(version),
 			Namespace: schema.Namespace,
+			Annotations: map[string]string{
+				PreviousActiveSchemaVersionAnnotationName: strconv.Itoa(schema.Status.LatestVersion),
+			},
 		},
 		Spec: clientv1alpha1.SchemaVersionSpec{
 			Subject:                schema.GetSubject(),
