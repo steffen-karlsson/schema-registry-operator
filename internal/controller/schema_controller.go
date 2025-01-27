@@ -167,25 +167,25 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
-	// get schemaversion and update status
-	newSchema := &clientv1alpha1.SchemaVersion{}
+	// Get the new SchemaVersion CRD and update status to active
+	newSchemaVersion := &clientv1alpha1.SchemaVersion{}
 	if err = r.Get(ctx, types.NamespacedName{
 		Namespace: schema.Namespace,
 		Name:      schema.GetSubject() + "-v" + strconv.Itoa(version),
-	}, newSchema); err != nil {
+	}, newSchemaVersion); err != nil {
 		logger.Error(err, "failed to get new schema version")
 		return ctrl.Result{}, err
 	}
 
-	newSchema.Status.Active = true
-	newSchema.Status.Ready = true
+	newSchemaVersion.Status.Active = true
+	newSchemaVersion.Status.Ready = true
 
-	if err = r.Status().Update(ctx, newSchema); err != nil {
+	if err = r.Status().Update(ctx, newSchemaVersion); err != nil {
 		logger.Error(err, "failed to update new schema version status")
 		return ctrl.Result{}, err
 	}
 
-	// set status of previous schema version to inactive
+	// Update status of previous SchemaVersion CRD to inactive
 	oldSchemaVersion := &clientv1alpha1.SchemaVersion{}
 	if schema.Status.LatestVersion != 0 {
 		if err = r.Get(ctx, types.NamespacedName{
