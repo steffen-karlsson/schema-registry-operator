@@ -34,6 +34,11 @@ import (
 
 // SchemaSpec defines the desired state of Schema
 type SchemaSpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Subject is immutable"
+	// Used to define the schema subject, default is the name of the resource
+	Subject string `json:"subject,omitempty"`
+
 	// +kubebuilder:default:="VALUE"
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Target is immutable"
@@ -81,6 +86,7 @@ type SchemaStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Subject",type="string",JSONPath=".spec.subject",description="The subject of the schema"
 // +kubebuilder:printcolumn:name="Target",type="string",JSONPath=".spec.target",description="The target of the schema"
 // +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="The type of the schema"
 // +kubebuilder:printcolumn:name="Compatibility Level",type="string",JSONPath=".spec.compatibilityLevel",description="The compatibility level of the schema"
@@ -113,5 +119,5 @@ func (s *Schema) Hash() (uint32, error) {
 }
 
 func (s *Schema) GetSubject() string {
-	return s.Name + "-" + strings.ToLower(s.Spec.Target)
+	return s.Spec.Subject + "-" + strings.ToLower(s.Spec.Target)
 }

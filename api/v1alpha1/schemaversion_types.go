@@ -58,7 +58,6 @@ type SchemaVersionStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Subject",type="string",JSONPath=".spec.subject",description="The schema subject"
 // +kubebuilder:printcolumn:name="Version",type="integer",JSONPath=".spec.version",description="The schema version"
 // +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".status.active",description="Whether the schema is active"
 // +kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready",description="Whether the schema is ready"

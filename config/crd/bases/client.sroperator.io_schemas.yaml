@@ -70,6 +70,13 @@ spec:
                 description: Used to define if the schema should be normalized, default
                   is false
                 type: boolean
+              subject:
+                description: Used to define the schema subject, default is the name
+                  of the resource
+                type: string
+                x-kubernetes-validations:
+                - message: Subject is immutable
+                  rule: self == oldSelf
               target:
                 default: VALUE
                 description: Used to define the schema target, one of VALUE (default),

@@ -107,6 +107,10 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	}
 
+	if schema.Spec.Subject == "" {
+		schema.Spec.Subject = schema.Name
+	}
+
 	// The purpose is to get the SchemaRegistry instance
 	schemaRegistry, err := r.fetchSchemaRegistryInstance(ctx, schema)
 
@@ -273,7 +277,7 @@ func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, sr
 	version := int(*srSchemaObject.Version)
 	return clientv1alpha1.SchemaVersion{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      schema.Name + "-v" + strconv.Itoa(version),
+			Name:      schema.GetSubject() + "-v" + strconv.Itoa(version),
 			Namespace: schema.Namespace,
 			Annotations: map[string]string{
 				PreviousActiveSchemaVersionAnnotationName: strconv.Itoa(schema.Status.LatestVersion),

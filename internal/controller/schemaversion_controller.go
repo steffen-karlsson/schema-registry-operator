@@ -93,7 +93,7 @@ func (r *SchemaVersionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	oldSchemaNamespacedName := types.NamespacedName{
 		Namespace: req.Namespace,
-		Name:      schemaVersion.Name + "-v" + strconv.Itoa(previousVersionInt),
+		Name:      schemaVersion.Spec.Subject + "-v" + strconv.Itoa(previousVersionInt),
 	}
 
 	oldSchemaVersion := &clientv1alpha1.SchemaVersion{}
