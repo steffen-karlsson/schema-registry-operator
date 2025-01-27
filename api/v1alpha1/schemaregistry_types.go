@@ -55,16 +55,18 @@ type SchemaRegistrySpec struct {
 	// The desired compute resource requirements of Pods in the cluster.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
+	// +kubebuilder:default:={}
 	// +kubebuilder:validation:Optional
 	// Used to define the ingress specifications of the schema registry, default is disabled
 	Ingress SchemaRegistryIngress `json:"ingress,omitempty"`
 
+	// +kubebuilder:default:={}
 	// +kubebuilder:validation:Optional
 	// Used to define the metrics specifications of the schema registry, default is disabled
 	Metrics SchemaRegistryMetrics `json:"metrics,omitempty"`
 
 	// Used to define the Kafka configuration
-	KafkaConfig KafkaConfig `json:"kafkaConfig,omitempty"`
+	KafkaConfig KafkaConfig `json:"kafkaConfig"`
 
 	// +kubebuilder:default:=false
 	// Used to define the debug mode, default is disabled
