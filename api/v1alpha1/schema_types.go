@@ -71,10 +71,10 @@ type SchemaStatus struct {
 	LatestVersion int `json:"latestVersion"`
 
 	// Used to define the status message of the schema
-	Message string `json:"message"`
+	Message string `json:"message,omitempty"`
 
 	// Used to define the schema registry error
-	SchemaRegistryError string `json:"schemaRegistryError"`
+	SchemaRegistryError string `json:"schemaRegistryError,omitempty"`
 
 	// Used to define if the schema is ready
 	Ready bool `json:"ready"`
