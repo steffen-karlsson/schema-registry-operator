@@ -46,10 +46,9 @@ import (
 )
 
 const (
-	SchemaRegistryLabelName                   = "client.sroperator.io/instance"
-	SchemaVersionLatest                       = "latest"
-	SchemaDeployedSuccess                     = "Schema deployed successfully"
-	PreviousActiveSchemaVersionAnnotationName = "client.sroperator.io/previous-active-schema-version"
+	SchemaRegistryLabelName = "client.sroperator.io/instance"
+	SchemaVersionLatest     = "latest"
+	SchemaDeployedSuccess   = "Schema deployed successfully"
 )
 
 // SchemaReconciler reconciles a Schema object
