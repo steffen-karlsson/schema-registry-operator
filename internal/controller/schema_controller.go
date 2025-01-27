@@ -135,7 +135,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	version, err := r.deploySchema(ctx, schema, &schemaRegistry, logger)
+	srSchemaObject, err := r.deploySchema(ctx, schema, &schemaRegistry, logger)
 	if err != nil {
 		logger.Error(err, "failed to deploy schema to schema registry", "schema", schema)
 
@@ -153,7 +153,9 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	if err = r.deploySchemaVersion(ctx, schema, version, logger); err != nil {
+	version := int(*srSchemaObject.Version)
+
+	if err = r.deploySchemaVersion(ctx, schema, srSchemaObject, logger); err != nil {
 		logger.Error(err, "failed to create new SchemaVersion CRD", "schema", schema)
 
 		schema.Status.Message = "Failed to create new SchemaVersion CRD with version: " + strconv.Itoa(version)
@@ -214,10 +216,10 @@ func (r *SchemaReconciler) fetchSchemaRegistryInstance(ctx context.Context, sche
 func (r *SchemaReconciler) deploySchemaVersion(
 	ctx context.Context,
 	schema *clientv1alpha1.Schema,
-	version int,
+	srSchemaObject *srclient.Schema,
 	logger logr.Logger,
 ) error {
-	schemaVersion := r.createSchemaVersion(schema, version)
+	schemaVersion := r.createSchemaVersion(schema, srSchemaObject)
 	if err := ctrl.SetControllerReference(schema, &schemaVersion, r.Scheme); err != nil {
 		logger.Error(err, "failed to set controller reference", "schemaversion", schemaVersion)
 		return err
@@ -236,12 +238,12 @@ func (r *SchemaReconciler) deploySchema(
 	schema *clientv1alpha1.Schema,
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	logger logr.Logger,
-) (int, error) {
+) (*srclient.Schema, error) {
 	server := fmt.Sprintf("http://localhost:%d", schemaRegistry.Spec.Port)
 	srClient, err := srclient.NewClientWithResponses(server)
 	if err != nil {
 		logger.Error(err, "failed to create schema registry client")
-		return 0, err
+		return nil, err
 	}
 
 	registerResp, err := srClient.Register1WithResponse(ctx, schema.GetSubject(), &srclient.Register1Params{
@@ -253,34 +255,36 @@ func (r *SchemaReconciler) deploySchema(
 
 	if err != nil {
 		logger.Error(err, "failed to register schema")
-		return 0, err
+		return nil, err
 	}
 
 	switch registerResp.HTTPResponse.StatusCode {
 	case http.StatusUnprocessableEntity:
-		return 0, NewInvalidSchemaOrTypeError(*registerResp.ApplicationvndSchemaregistryV1JSON422.Message)
+		return nil, NewInvalidSchemaOrTypeError(*registerResp.ApplicationvndSchemaregistryV1JSON422.Message)
 	case http.StatusConflict:
-		return 0, NewIncompatibleSchemaError(*registerResp.ApplicationvndSchemaregistryV1JSON409.Message)
+		return nil, NewIncompatibleSchemaError(*registerResp.ApplicationvndSchemaregistryV1JSON409.Message)
 	}
 
 	getResp, err := srClient.GetSchemaByVersion1WithResponse(ctx, schema.GetSubject(), SchemaVersionLatest, nil)
 	if err != nil || getResp.HTTPResponse.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("unknown error, failed to get schema: %w", err)
+		return nil, fmt.Errorf("unknown error, failed to get schema: %w", err)
 	}
 
-	return int(*getResp.ApplicationvndSchemaregistryV1JSON200.Version), nil
+	return getResp.ApplicationvndSchemaregistryV1JSON200, nil
 }
 
-func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, version int) clientv1alpha1.SchemaVersion {
+func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, srSchemaObject *srclient.Schema) clientv1alpha1.SchemaVersion {
+	version := int(*srSchemaObject.Version)
 	return clientv1alpha1.SchemaVersion{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      schema.Name + "-v" + strconv.Itoa(int(version)),
+			Name:      schema.Name + "-v" + strconv.Itoa(version),
 			Namespace: schema.Namespace,
 		},
 		Spec: clientv1alpha1.SchemaVersionSpec{
-			Subject: schema.GetSubject(),
-			Version: version,
-			Content: schema.Spec.Content,
+			Subject:                schema.GetSubject(),
+			Version:                version,
+			Content:                schema.Spec.Content,
+			SchemaRegistrySchemaId: int(*srSchemaObject.Id),
 		},
 	}
 }

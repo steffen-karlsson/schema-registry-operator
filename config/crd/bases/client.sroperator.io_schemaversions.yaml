@@ -62,6 +62,12 @@ spec:
                 x-kubernetes-validations:
                 - message: Content is immutable
                   rule: self == oldSelf
+              schemaRegistrySchemaId:
+                description: Used to define the schema registry id
+                type: integer
+                x-kubernetes-validations:
+                - message: Schema Registry ID is immutable
+                  rule: self == oldSelf
               subject:
                 description: Used to define the schema subject, concatenated with
                   the schema name and target
@@ -77,6 +83,7 @@ spec:
                   rule: self == oldSelf
             required:
             - content
+            - schemaRegistrySchemaId
             - subject
             - version
             type: object
