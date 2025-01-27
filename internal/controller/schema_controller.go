@@ -167,6 +167,44 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
+	// Get the new SchemaVersion CRD and update status to active
+	newSchemaVersion := &clientv1alpha1.SchemaVersion{}
+	if err = r.Get(ctx, types.NamespacedName{
+		Namespace: schema.Namespace,
+		Name:      schema.GetSubject() + "-v" + strconv.Itoa(version),
+	}, newSchemaVersion); err != nil {
+		logger.Error(err, "failed to get new schema version")
+		return ctrl.Result{}, err
+	}
+
+	newSchemaVersion.Status.Active = true
+	newSchemaVersion.Status.Ready = true
+
+	if err = r.Status().Update(ctx, newSchemaVersion); err != nil {
+		logger.Error(err, "failed to update new schema version status")
+		return ctrl.Result{}, err
+	}
+
+	// Update status of previous SchemaVersion CRD to inactive
+	oldSchemaVersion := &clientv1alpha1.SchemaVersion{}
+	if schema.Status.LatestVersion != 0 {
+		if err = r.Get(ctx, types.NamespacedName{
+			Namespace: schema.Namespace,
+			Name:      schema.GetSubject() + "-v" + strconv.Itoa(schema.Status.LatestVersion),
+		}, oldSchemaVersion); err != nil {
+			logger.Error(err, "failed to get previous active schema version")
+			return ctrl.Result{}, err
+		}
+
+		oldSchemaVersion.Status.Active = false
+		oldSchemaVersion.Status.Ready = true
+
+		if err = r.Status().Update(ctx, oldSchemaVersion); err != nil {
+			logger.Error(err, "failed to update previous active schema version status")
+			return ctrl.Result{}, err
+		}
+	}
+
 	newContentHash, err := schema.Hash()
 	if err != nil {
 		logger.Error(err, "failed to hash schema content")
