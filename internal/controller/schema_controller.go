@@ -46,9 +46,8 @@ import (
 )
 
 const (
-	SchemaRegistryLabelName = "client.sroperator.io/instance"
-	SchemaVersionLatest     = "latest"
-	SchemaDeployedSuccess   = "Schema deployed successfully"
+	SchemaVersionLatest   = "latest"
+	SchemaDeployedSuccess = "Schema deployed successfully"
 )
 
 // SchemaReconciler reconciles a Schema object
@@ -149,7 +148,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	version := int(*srSchemaObject.Version)
 
-	if err = r.deploySchemaVersion(ctx, schema, srSchemaObject, logger); err != nil {
+	if err = r.deploySchemaVersion(ctx, schema, srSchemaObject, schemaRegistry.Name, logger); err != nil {
 		logger.Error(err, "failed to create new SchemaVersion CRD", "schema", schema)
 
 		schema.UpdateStatus(false, "Failed to create new SchemaVersion CRD with version: "+strconv.Itoa(version))
@@ -227,9 +226,10 @@ func (r *SchemaReconciler) deploySchemaVersion(
 	ctx context.Context,
 	schema *clientv1alpha1.Schema,
 	srSchemaObject *srclient.Schema,
+	schemaRegistryName string,
 	logger logr.Logger,
 ) error {
-	schemaVersion := r.createSchemaVersion(schema, srSchemaObject)
+	schemaVersion := r.createSchemaVersion(schema, srSchemaObject, schemaRegistryName)
 	if err := ctrl.SetControllerReference(schema, &schemaVersion, r.Scheme); err != nil {
 		logger.Error(err, "failed to set controller reference", "schemaversion", schemaVersion)
 		return err
@@ -283,7 +283,11 @@ func (r *SchemaReconciler) deploySchema(
 	return getResp.ApplicationvndSchemaregistryV1JSON200, nil
 }
 
-func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, srSchemaObject *srclient.Schema) clientv1alpha1.SchemaVersion {
+func (r *SchemaReconciler) createSchemaVersion(
+	schema *clientv1alpha1.Schema,
+	srSchemaObject *srclient.Schema,
+	schemaRegistryName string,
+) clientv1alpha1.SchemaVersion {
 	version := int(*srSchemaObject.Version)
 	return clientv1alpha1.SchemaVersion{
 		ObjectMeta: metav1.ObjectMeta{
@@ -291,6 +295,9 @@ func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, sr
 			Namespace: schema.Namespace,
 			Annotations: map[string]string{
 				PreviousActiveSchemaVersionAnnotationName: strconv.Itoa(schema.Status.LatestVersion),
+			},
+			Labels: map[string]string{
+				SchemaRegistryLabelName: schemaRegistryName,
 			},
 		},
 		Spec: clientv1alpha1.SchemaVersionSpec{
