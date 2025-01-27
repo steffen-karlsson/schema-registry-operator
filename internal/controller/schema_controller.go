@@ -47,6 +47,7 @@ import (
 
 const (
 	SchemaRegistryLabelName = "client.sroperator.io/instance"
+	SchemaVersionLatest     = "latest"
 )
 
 // SchemaReconciler reconciles a Schema object
@@ -236,14 +237,14 @@ func (r *SchemaReconciler) deploySchema(
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	logger logr.Logger,
 ) (int, error) {
-	server := fmt.Sprintf("http://%s:%d", schemaRegistry.Name, schemaRegistry.Spec.Port)
+	server := fmt.Sprintf("http://localhost:%d", schemaRegistry.Spec.Port)
 	srClient, err := srclient.NewClientWithResponses(server)
 	if err != nil {
 		logger.Error(err, "failed to create schema registry client")
 		return 0, err
 	}
 
-	resp, err := srClient.Register1WithResponse(ctx, schema.GetSubject(), &srclient.Register1Params{
+	registerResp, err := srClient.Register1WithResponse(ctx, schema.GetSubject(), &srclient.Register1Params{
 		Normalize: &schema.Spec.Normalize,
 	}, srclient.Register1JSONRequestBody{
 		Schema:     &schema.Spec.Content,
@@ -255,16 +256,19 @@ func (r *SchemaReconciler) deploySchema(
 		return 0, err
 	}
 
-	switch resp.HTTPResponse.StatusCode {
+	switch registerResp.HTTPResponse.StatusCode {
 	case http.StatusUnprocessableEntity:
-		return 0, NewInvalidSchemaOrTypeError(*resp.ApplicationvndSchemaregistryV1JSON422.Message)
+		return 0, NewInvalidSchemaOrTypeError(*registerResp.ApplicationvndSchemaregistryV1JSON422.Message)
 	case http.StatusConflict:
-		return 0, NewIncompatibleSchemaError(*resp.ApplicationvndSchemaregistryV1JSON409.Message)
-	case http.StatusOK:
-		return int(*resp.ApplicationvndSchemaregistryV1JSON200.Id), nil
+		return 0, NewIncompatibleSchemaError(*registerResp.ApplicationvndSchemaregistryV1JSON409.Message)
 	}
 
-	return 0, fmt.Errorf("unknown error, failed to register schema: %d", resp.HTTPResponse.StatusCode)
+	getResp, err := srClient.GetSchemaByVersion1WithResponse(ctx, schema.GetSubject(), SchemaVersionLatest, nil)
+	if err != nil || getResp.HTTPResponse.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("unknown error, failed to get schema: %w", err)
+	}
+
+	return int(*getResp.ApplicationvndSchemaregistryV1JSON200.Version), nil
 }
 
 func (r *SchemaReconciler) createSchemaVersion(schema *clientv1alpha1.Schema, version int) clientv1alpha1.SchemaVersion {
