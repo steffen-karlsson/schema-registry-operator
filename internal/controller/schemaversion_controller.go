@@ -27,6 +27,7 @@ package controller
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -81,11 +82,11 @@ func (r *SchemaVersionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 
 		// Delete the schema version from the SchemaRegistry
-		if err = r.deleteSchema(ctx, schemaVersion, schemaRegistry, logger); err != nil {
+		if err = r.deleteSchemaVersion(ctx, schemaVersion, schemaRegistry, logger); err != nil {
 			logger.Error(err, "failed to delete schema",
 				"subject", schemaVersion.Spec.Subject,
 				"version", schemaVersion.Spec.Version)
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 	case err != nil:
 		logger.Error(err, "failed to get SchemaVersion", "name", req.Name)
@@ -95,7 +96,7 @@ func (r *SchemaVersionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
-func (r *SchemaVersionReconciler) deleteSchema(
+func (r *SchemaVersionReconciler) deleteSchemaVersion(
 	ctx context.Context,
 	schemaVersion *clientv1alpha1.SchemaVersion,
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
