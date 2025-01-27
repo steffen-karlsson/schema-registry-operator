@@ -15,10 +15,6 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The schema subject
-      jsonPath: .spec.subject
-      name: Subject
-      type: string
     - description: The schema version
       jsonPath: .spec.version
       name: Version

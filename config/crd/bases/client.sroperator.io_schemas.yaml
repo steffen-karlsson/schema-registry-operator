@@ -15,6 +15,10 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - description: The subject of the schema
+      jsonPath: .spec.subject
+      name: Subject
+      type: string
     - description: The target of the schema
       jsonPath: .spec.target
       name: Target
