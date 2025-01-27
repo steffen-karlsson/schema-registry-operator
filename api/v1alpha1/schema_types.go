@@ -73,6 +73,9 @@ type SchemaStatus struct {
 
 	// Used to define if the schema is ready
 	Ready bool `json:"ready"`
+
+	// Used to define the last transition time
+	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
 }
 
 // +kubebuilder:object:root=true

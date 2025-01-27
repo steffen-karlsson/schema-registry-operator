@@ -48,6 +48,7 @@ import (
 const (
 	SchemaRegistryLabelName = "client.sroperator.io/instance"
 	SchemaVersionLatest     = "latest"
+	SchemaDeployedSuccess   = "Schema deployed successfully"
 )
 
 // SchemaReconciler reconciles a Schema object
@@ -98,7 +99,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if !updated && schema.Status.Ready {
 		// No need to update the schema if the content hash is the same
-		if err = r.updateStatusSuccessfully(ctx, schema); err != nil {
+		if err = r.updateStatus(ctx, schema, true, SchemaDeployedSuccess); err != nil {
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
@@ -111,20 +112,16 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	switch {
 	case errors.Is(err, ErrInstanceNotFound):
-		schema.Status.Message = "Schema Registry instance not found"
-		schema.Status.Ready = false
-
-		if err = r.Status().Update(ctx, schema); err != nil {
+		if err = r.updateStatus(ctx, schema, false, "Schema Registry instance not found"); err != nil {
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
 
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	case errors.Is(err, ErrInstanceLabelNotFound):
-		schema.Status.Message = "Instance label: " + SchemaRegistryLabelName + " not found"
-		schema.Status.Ready = false
+		message := "Instance label: " + SchemaRegistryLabelName + " not found"
 
-		if err = r.Status().Update(ctx, schema); err != nil {
+		if err = r.updateStatus(ctx, schema, false, message); err != nil {
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
@@ -139,14 +136,13 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err != nil {
 		logger.Error(err, "failed to deploy schema to schema registry", "schema", schema)
 
-		schema.Status.Message = "Failed to deploy schema to Schema Registry: " + schemaRegistry.Name
-		schema.Status.Ready = false
+		message := "Failed to deploy schema to Schema Registry: " + schemaRegistry.Name
 
 		if errors.Is(err, ErrIncompatibleSchema) || errors.Is(err, ErrInvalidSchemaOrType) {
 			schema.Status.SchemaRegistryError = errors.Unwrap(err).Error()
 		}
 
-		if err = r.Status().Update(ctx, schema); err != nil {
+		if err = r.updateStatus(ctx, schema, false, message); err != nil {
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
@@ -158,10 +154,9 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err = r.deploySchemaVersion(ctx, schema, srSchemaObject, logger); err != nil {
 		logger.Error(err, "failed to create new SchemaVersion CRD", "schema", schema)
 
-		schema.Status.Message = "Failed to create new SchemaVersion CRD with version: " + strconv.Itoa(version)
-		schema.Status.Ready = false
+		message := "Failed to create new SchemaVersion CRD with version: " + strconv.Itoa(version)
 
-		if err = r.Status().Update(ctx, schema); err != nil {
+		if err = r.updateStatus(ctx, schema, false, message); err != nil {
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
@@ -183,7 +178,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	schema.Status.LatestVersion = version
 
-	if err = r.updateStatusSuccessfully(ctx, schema); err != nil {
+	if err = r.updateStatus(ctx, schema, true, SchemaDeployedSuccess); err != nil {
 		logger.Error(err, "failed to update schema status")
 		return ctrl.Result{}, err
 	}
@@ -191,9 +186,10 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
 }
 
-func (r *SchemaReconciler) updateStatusSuccessfully(ctx context.Context, schema *clientv1alpha1.Schema) error {
-	schema.Status.Ready = true
-	schema.Status.Message = "Schema deployed successfully"
+func (r *SchemaReconciler) updateStatus(ctx context.Context, schema *clientv1alpha1.Schema, ready bool, message string) error {
+	schema.Status.Ready = ready
+	schema.Status.Message = message
+	schema.Status.LastTransitionTime = metav1.Now()
 
 	return r.Status().Update(ctx, schema)
 }

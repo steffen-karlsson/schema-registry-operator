@@ -92,6 +92,10 @@ spec:
           status:
             description: SchemaStatus defines the observed state of Schema
             properties:
+              lastTransitionTime:
+                description: Used to define the last transition time
+                format: date-time
+                type: string
               latestVersion:
                 description: Used to define the latest version of the schema
                 type: integer
@@ -105,6 +109,7 @@ spec:
                 description: Used to define the schema registry error
                 type: string
             required:
+            - lastTransitionTime
             - latestVersion
             - message
             - ready
