@@ -32,11 +32,18 @@ import (
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
 	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
+	"github.com/steffen-karlsson/schema-registry-operator/pkg/srclient"
+)
+
+const (
+	SubjectNotFoundErrorCode = 40401
+	SchemaVersionNotFound    = 42202
 )
 
 // SchemaVersionReconciler reconciles a SchemaVersion object
@@ -86,6 +93,12 @@ func (r *SchemaVersionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			logger.Error(err, "failed to delete schema",
 				"subject", schemaVersion.Spec.Subject,
 				"version", schemaVersion.Spec.Version)
+
+			if err = r.Status().Update(ctx, schemaVersion); err != nil {
+				logger.Error(err, "failed to update schema version status")
+				return ctrl.Result{}, err
+			}
+
 			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 	case err != nil:
@@ -111,7 +124,33 @@ func (r *SchemaVersionReconciler) deleteSchemaVersion(
 	// Delete the schema from the SchemaRegistry
 	subject := schemaVersion.Spec.Subject
 	version := strconv.Itoa(schemaVersion.Spec.Version)
-	_, err = srClient.DeleteSchemaVersion1WithResponse(ctx, subject, version, nil)
+
+	deleteResp, err := srClient.DeleteSchemaVersion1WithResponse(ctx, subject, version, &srclient.DeleteSchemaVersion1Params{
+		Permanent: ptr.To(true),
+	})
+
+	switch {
+	case apierrors.IsNotFound(err):
+		srErrorCode := *deleteResp.ApplicationvndSchemaregistryV1JSON404.ErrorCode
+		if srErrorCode == SubjectNotFoundErrorCode {
+			logger.Info("subject not found in SchemaRegistry", "subject", subject)
+			schemaVersion.UpdateStatus(false, ErrSchemaSubjectNotFound.Error())
+
+			return ErrSchemaSubjectNotFound
+		}
+
+		if srErrorCode == SchemaVersionNotFound {
+			logger.Info("schema version not found in SchemaRegistry", "subject", subject, "version", version)
+			schemaVersion.UpdateStatus(false, ErrSchemaVersionNotFound.Error())
+
+			return ErrSchemaVersionNotFound
+		}
+	case apierrors.IsInvalid(err):
+		logger.Error(err, "invalid schema", "subject", subject, "version", version)
+		schemaVersion.UpdateStatus(false, ErrInvalidSchemaVersion.Error())
+
+		return ErrInvalidSchemaVersion
+	}
 
 	return err
 }

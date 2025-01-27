@@ -6,11 +6,13 @@ import (
 )
 
 var (
-	ErrInstanceLabelNotFound            = errors.New("instance label not found")
-	ErrInstanceNotFound                 = errors.New("schema registry instance not found")
-	ErrIncompatibleSchema               = errors.New("incompatible schema")
-	ErrInvalidSchemaOrType              = errors.New("invalid schema or schema type")
-	ErrInvalidSchemaVersionModification = errors.New("no previous active schema version found, SchemaVersion has been modified manually")
+	ErrInstanceLabelNotFound = errors.New("instance label not found")
+	ErrInstanceNotFound      = errors.New("schema registry instance not found")
+	ErrIncompatibleSchema    = errors.New("incompatible schema")
+	ErrInvalidSchemaOrType   = errors.New("invalid schema or schema type")
+	ErrInvalidSchemaVersion  = errors.New("invalid schema version")
+	ErrSchemaVersionNotFound = errors.New("schema version not found")
+	ErrSchemaSubjectNotFound = errors.New("schema subject not found")
 )
 
 func NewIncompatibleSchemaError(message string) error {
