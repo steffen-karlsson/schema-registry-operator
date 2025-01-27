@@ -249,8 +249,7 @@ func (r *SchemaReconciler) deploySchema(
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	logger logr.Logger,
 ) (*srclient.Schema, error) {
-	server := fmt.Sprintf("http://%s:%d", schemaRegistry.Name, schemaRegistry.Spec.Port)
-	srClient, err := srclient.NewClientWithResponses(server)
+	srClient, err := schemaRegistry.NewInstance()
 	if err != nil {
 		logger.Error(err, "failed to create schema registry client")
 		return nil, err
