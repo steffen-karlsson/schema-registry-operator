@@ -35,6 +35,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -120,16 +121,37 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	if schema.Spec.Subject == "" {
+		schema.Spec.Subject = schema.Name
+	}
+
+	// Check if the <schema.Spec.Subject>-<schema.Spec.Type> is unique in the specific Schema Registry instance
+	unique, err := r.isSubjectUnique(ctx, schema, schemaRegistry, logger)
+	if err != nil {
+		logger.Error(err, "failed to check if subject is unique")
+		return ctrl.Result{}, err
+	}
+
+	if !unique {
+		logger.Info("subject is not unique")
+		message := fmt.Sprintf("Subject %s is not unique in Schema Registry %s",
+			schema.GetSubject(), schemaRegistry.Name)
+		schema.UpdateStatus(false, message)
+
+		if err = r.Update(ctx, schema); err != nil {
+			logger.Error(err, "failed to update schema")
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	// All one of events, needs to be checked, otherwise crd Update, will trigger the next reconcile
 	// 1) Add finalizer to the schema
 	// 2) Assign subject to the schema
-	// 3) [TODO] Check if the <schema.Spec.Subject>-<schema.Spec.Type> is unique
-	if !controllerutil.ContainsFinalizer(schema, SchemaFinalizer) || schema.Spec.Subject == "" {
+	if !controllerutil.ContainsFinalizer(schema, SchemaFinalizer) {
 		controllerutil.AddFinalizer(schema, SchemaFinalizer)
-		if schema.Spec.Subject == "" {
-			// Need to check if <schema.Spec.Subject>-<schema.Spec.Type> is unique
-			schema.Spec.Subject = schema.Name
-		}
+
 		if err = r.Update(ctx, schema); err != nil {
 			logger.Error(err, "failed to update schema")
 			return ctrl.Result{}, err
@@ -137,7 +159,6 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	return r.upsert(ctx, schema, schemaRegistry, logger)
-
 }
 
 func (r *SchemaReconciler) delete(
@@ -205,6 +226,30 @@ func (r *SchemaReconciler) upsert(
 
 	secondsTillNextReconcile := time.Duration(schema.Spec.SchemaRegistryConfig.SyncInterval) * time.Second
 	return ctrl.Result{RequeueAfter: secondsTillNextReconcile}, nil
+}
+
+func (r *SchemaReconciler) isSubjectUnique(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) (bool, error) {
+	potentialMatchingSchemas := &clientv1alpha1.SchemaList{}
+	if err := r.List(ctx, potentialMatchingSchemas,
+		client.InNamespace(schema.Namespace),
+		client.MatchingLabels{SchemaRegistryLabelName: schemaRegistry.Name}); err != nil {
+
+		logger.Error(err, "failed to list schemas")
+		return false, err
+	}
+
+	for _, potentialMatchingSchema := range potentialMatchingSchemas.Items {
+		if potentialMatchingSchema.GetSubject() == schema.GetSubject() {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 func (r *SchemaReconciler) deploySchema(
