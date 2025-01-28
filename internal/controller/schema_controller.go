@@ -35,6 +35,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
@@ -67,6 +68,7 @@ type SchemaReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	logger.Info("Reconciling Schema: ", "Name", req.Name, "Namespace", req.Namespace)
 
 	// The purpose is checking if the Custom Resource for the Kind Schema
 	// is applied on the cluster if not we return nil to stop the reconciliation
@@ -84,11 +86,6 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// In this way, we will requeue the request
 		logger.Error(err, "failed to get schema")
 		return ctrl.Result{}, err
-	}
-
-	if schema.Spec.Subject == "" {
-		// Need to check if <schema.Spec.Subject>-<schema.Spec.Type> is unique
-		schema.Spec.Subject = schema.Name
 	}
 
 	// The purpose is to get the SchemaRegistry instance
@@ -109,8 +106,34 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// The purpose is to check if the schema is scheduled for deletion
-	if schema.GetDeletionTimestamp() != nil {
-		return r.delete(ctx, schema, schemaRegistry, logger)
+	schemaMarkedTobeDeleted := schema.GetDeletionTimestamp() != nil
+	if schemaMarkedTobeDeleted {
+		if err = r.delete(ctx, schema, schemaRegistry, logger); err != nil {
+			logger.Error(err, "failed to delete schema")
+			return ctrl.Result{RequeueAfter: time.Minute}, err
+		}
+
+		controllerutil.RemoveFinalizer(schema, SchemaFinalizer)
+		if err = r.Update(ctx, schema); err != nil {
+			logger.Error(err, "failed to remove finalizer from schema")
+			return ctrl.Result{RequeueAfter: time.Minute}, err
+		}
+	}
+
+	// All one of events, needs to be checked, otherwise crd Update, will trigger the next reconcile
+	// 1) Add finalizer to the schema
+	// 2) Assign subject to the schema
+	// 3) [TODO] Check if the <schema.Spec.Subject>-<schema.Spec.Type> is unique
+	if !controllerutil.ContainsFinalizer(schema, SchemaFinalizer) || schema.Spec.Subject == "" {
+		controllerutil.AddFinalizer(schema, SchemaFinalizer)
+		if schema.Spec.Subject == "" {
+			// Need to check if <schema.Spec.Subject>-<schema.Spec.Type> is unique
+			schema.Spec.Subject = schema.Name
+		}
+		if err = r.Update(ctx, schema); err != nil {
+			logger.Error(err, "failed to update schema")
+			return ctrl.Result{}, err
+		}
 	}
 
 	return r.upsert(ctx, schema, schemaRegistry, logger)
@@ -122,8 +145,29 @@ func (r *SchemaReconciler) delete(
 	schema *clientv1alpha1.Schema,
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	logger logr.Logger,
-) (ctrl.Result, error) {
-	return ctrl.Result{}, nil
+) error {
+	logger.Info("Deleting schema in schema registry", "Name", schema.Name, "Namespace", schema.Namespace)
+	srClient, err := schemaRegistry.NewInstance()
+	if err != nil {
+		logger.Error(err, "failed to create schema registry client")
+		return err
+	}
+
+	_, err = srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), nil)
+	if err != nil {
+		logger.Error(err, "failed to delete schema")
+		return fmt.Errorf("failed to delete schema: %w", err)
+	}
+
+	permanentDelete := true
+	_, err = srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), &srclient.DeleteSubject1Params{
+		Permanent: &permanentDelete,
+	})
+	if err != nil {
+		logger.Error(err, "failed to permanently delete schema")
+	}
+
+	return nil
 }
 
 func (r *SchemaReconciler) upsert(
@@ -132,6 +176,7 @@ func (r *SchemaReconciler) upsert(
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	logger logr.Logger,
 ) (ctrl.Result, error) {
+	logger.Info("Upserting schema in schema registry", "Name", schema.Name, "Namespace", schema.Namespace)
 	srSchemaObject, err := r.deploySchema(ctx, schema, schemaRegistry, logger)
 	if err != nil {
 		logger.Error(err, "failed to deploy schema to schema registry", "schema", schema)
@@ -148,11 +193,6 @@ func (r *SchemaReconciler) upsert(
 		}
 
 		return ctrl.Result{RequeueAfter: time.Minute}, err
-	}
-
-	if err = r.Update(ctx, schema); err != nil {
-		logger.Error(err, "failed to update schema")
-		return ctrl.Result{}, err
 	}
 
 	schema.UpdateStatus(true, SchemaDeployedSuccess)
