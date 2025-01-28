@@ -42,8 +42,7 @@ import (
 )
 
 const (
-	SubjectNotFoundErrorCode = 40401
-	SchemaVersionNotFound    = 42202
+	SchemaVersionWasSoftDeleted = 40406
 )
 
 // SchemaVersionReconciler reconciles a SchemaVersion object
@@ -125,31 +124,27 @@ func (r *SchemaVersionReconciler) deleteSchemaVersion(
 	subject := schemaVersion.Spec.Subject
 	version := strconv.Itoa(schemaVersion.Spec.Version)
 
-	deleteResp, err := srClient.DeleteSchemaVersion1WithResponse(ctx, subject, version, &srclient.DeleteSchemaVersion1Params{
+	// For SR we first need to soft delete schema version
+	softDeleteResp, err := srClient.DeleteSchemaVersion1WithResponse(ctx, subject, version, &srclient.DeleteSchemaVersion1Params{
+		Permanent: ptr.To(false),
+	})
+
+	if apierrors.IsNotFound(err) || apierrors.IsInvalid(err) {
+		srStatusCode := *softDeleteResp.ApplicationvndSchemaregistryV1JSON404.ErrorCode
+		// Check if the schema version is only soft deleted in SR
+		if srStatusCode != SchemaVersionWasSoftDeleted {
+			// Success schema version is not in SR anyway and has been permanent deleted
+			return nil
+		}
+	}
+
+	// If the schema version is found, we can delete it permanently
+	_, err = srClient.DeleteSchemaVersion1WithResponse(ctx, subject, version, &srclient.DeleteSchemaVersion1Params{
 		Permanent: ptr.To(true),
 	})
 
-	switch {
-	case apierrors.IsNotFound(err):
-		srErrorCode := *deleteResp.ApplicationvndSchemaregistryV1JSON404.ErrorCode
-		if srErrorCode == SubjectNotFoundErrorCode {
-			logger.Info("subject not found in SchemaRegistry", "subject", subject)
-			schemaVersion.UpdateStatus(false, ErrSchemaSubjectNotFound.Error())
-
-			return ErrSchemaSubjectNotFound
-		}
-
-		if srErrorCode == SchemaVersionNotFound {
-			logger.Info("schema version not found in SchemaRegistry", "subject", subject, "version", version)
-			schemaVersion.UpdateStatus(false, ErrSchemaVersionNotFound.Error())
-
-			return ErrSchemaVersionNotFound
-		}
-	case apierrors.IsInvalid(err):
-		logger.Error(err, "invalid schema", "subject", subject, "version", version)
-		schemaVersion.UpdateStatus(false, ErrInvalidSchemaVersion.Error())
-
-		return ErrInvalidSchemaVersion
+	if apierrors.IsNotFound(err) || apierrors.IsInvalid(err) {
+		return nil
 	}
 
 	return err
