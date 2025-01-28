@@ -129,7 +129,11 @@ func (r *SchemaVersionReconciler) deleteSchemaVersion(
 		Permanent: ptr.To(false),
 	})
 
-	if apierrors.IsNotFound(err) || apierrors.IsInvalid(err) {
+	if apierrors.IsInvalid(err) {
+		return nil
+	}
+
+	if apierrors.IsNotFound(err) {
 		srStatusCode := *softDeleteResp.ApplicationvndSchemaregistryV1JSON404.ErrorCode
 		// Check if the schema version is only soft deleted in SR
 		if srStatusCode != SchemaVersionWasSoftDeleted {
