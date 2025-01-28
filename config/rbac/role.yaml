@@ -9,7 +9,6 @@ rules:
   resources:
   - schemaregistries
   - schemas
-  - schemaversions
   verbs:
   - create
   - delete
@@ -23,7 +22,6 @@ rules:
   resources:
   - schemaregistries/finalizers
   - schemas/finalizers
-  - schemaversions/finalizers
   verbs:
   - update
 - apiGroups:
@@ -31,7 +29,6 @@ rules:
   resources:
   - schemaregistries/status
   - schemas/status
-  - schemaversions/status
   verbs:
   - get
   - patch

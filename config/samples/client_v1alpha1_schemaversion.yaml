@@ -1,9 +1,0 @@
-apiVersion: client.sroperator.io/v1alpha1
-kind: SchemaVersion
-metadata:
-  labels:
-    app.kubernetes.io/name: schema-registry-operator
-    app.kubernetes.io/managed-by: kustomize
-  name: schemaversion-sample
-spec:
-  # TODO(user): Add fields here

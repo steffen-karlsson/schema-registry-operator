@@ -29,14 +29,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -89,26 +86,8 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// The purpose is to check if the schema content has changed
-	updated, err := Updated(schema.ObjectMeta, schema)
-	if err != nil {
-		logger.Error(err, "failed to check if schema content has changed")
-		return ctrl.Result{}, err
-	}
-
-	if !updated && schema.Status.Ready {
-		// No need to update the schema if the content hash is the same
-		schema.UpdateStatus(true, SchemaDeployedSuccess)
-
-		if err = r.Status().Update(ctx, schema); err != nil {
-			logger.Error(err, "failed to update schema status")
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{RequeueAfter: time.Minute}, nil
-	}
-
 	if schema.Spec.Subject == "" {
+		// Need to check if <schema.Spec.Subject>-<schema.Spec.Type> is unique
 		schema.Spec.Subject = schema.Name
 	}
 
@@ -146,73 +125,12 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
-	version := int(*srSchemaObject.Version)
-
-	if err = r.deploySchemaVersion(ctx, schema, srSchemaObject, schemaRegistry.Name, logger); err != nil {
-		logger.Error(err, "failed to create new SchemaVersion CRD", "schema", schema)
-
-		schema.UpdateStatus(false, "Failed to create new SchemaVersion CRD with version: "+strconv.Itoa(version))
-
-		if err = r.Status().Update(ctx, schema); err != nil {
-			logger.Error(err, "failed to update schema status")
-			return ctrl.Result{}, err
-		}
+	if err = r.Update(ctx, schema); err != nil {
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
-	// Get the new SchemaVersion CRD and update status to active
-	newSchemaVersion := &clientv1alpha1.SchemaVersion{}
-	if err = r.Get(ctx, types.NamespacedName{
-		Namespace: schema.Namespace,
-		Name:      schema.GetSubject() + "-v" + strconv.Itoa(version),
-	}, newSchemaVersion); err != nil {
-		logger.Error(err, "failed to get new schema version")
-		return ctrl.Result{}, err
-	}
-
-	newSchemaVersion.Status.Active = true
-	newSchemaVersion.Status.Ready = true
-
-	if err = r.Status().Update(ctx, newSchemaVersion); err != nil {
-		logger.Error(err, "failed to update new schema version status")
-		return ctrl.Result{}, err
-	}
-
-	// Update status of previous SchemaVersion CRD to inactive
-	oldSchemaVersion := &clientv1alpha1.SchemaVersion{}
-	if schema.Status.LatestVersion != 0 {
-		if err = r.Get(ctx, types.NamespacedName{
-			Namespace: schema.Namespace,
-			Name:      schema.GetSubject() + "-v" + strconv.Itoa(schema.Status.LatestVersion),
-		}, oldSchemaVersion); err != nil {
-			logger.Error(err, "failed to get previous active schema version")
-			return ctrl.Result{}, err
-		}
-
-		oldSchemaVersion.Status.Active = false
-		oldSchemaVersion.Status.Ready = true
-
-		if err = r.Status().Update(ctx, oldSchemaVersion); err != nil {
-			logger.Error(err, "failed to update previous active schema version status")
-			return ctrl.Result{}, err
-		}
-	}
-
-	newContentHash, err := schema.Hash()
-	if err != nil {
-		logger.Error(err, "failed to hash schema content")
-		return ctrl.Result{}, err
-	}
-
-	schema.ObjectMeta.Labels[SchemaRegistryContentHash] = strconv.Itoa(int(newContentHash))
-
-	if err = r.Update(ctx, schema); err != nil {
-		logger.Error(err, "failed to update schema content hash")
-		return ctrl.Result{}, err
-	}
-
 	schema.UpdateStatus(true, SchemaDeployedSuccess)
-	schema.Status.LatestVersion = version
+	schema.Status.LatestVersion = int(*srSchemaObject.Version)
 
 	if err = r.Status().Update(ctx, schema); err != nil {
 		logger.Error(err, "failed to update schema status")
@@ -220,27 +138,6 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
-}
-
-func (r *SchemaReconciler) deploySchemaVersion(
-	ctx context.Context,
-	schema *clientv1alpha1.Schema,
-	srSchemaObject *srclient.Schema,
-	schemaRegistryName string,
-	logger logr.Logger,
-) error {
-	schemaVersion := r.createSchemaVersion(schema, srSchemaObject, schemaRegistryName)
-	if err := ctrl.SetControllerReference(schema, &schemaVersion, r.Scheme); err != nil {
-		logger.Error(err, "failed to set controller reference", "schemaversion", schemaVersion)
-		return err
-	}
-
-	if err := r.Upsert(ctx, &schemaVersion, false); err != nil {
-		logger.Error(err, "failed to create schemaversion", "schemaversion", schemaVersion)
-		return err
-	}
-
-	return nil
 }
 
 func (r *SchemaReconciler) deploySchema(
@@ -280,32 +177,6 @@ func (r *SchemaReconciler) deploySchema(
 	}
 
 	return getResp.ApplicationvndSchemaregistryV1JSON200, nil
-}
-
-func (r *SchemaReconciler) createSchemaVersion(
-	schema *clientv1alpha1.Schema,
-	srSchemaObject *srclient.Schema,
-	schemaRegistryName string,
-) clientv1alpha1.SchemaVersion {
-	version := int(*srSchemaObject.Version)
-	return clientv1alpha1.SchemaVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      schema.GetSubject() + "-v" + strconv.Itoa(version),
-			Namespace: schema.Namespace,
-			Annotations: map[string]string{
-				PreviousActiveSchemaVersionAnnotationName: strconv.Itoa(schema.Status.LatestVersion),
-			},
-			Labels: map[string]string{
-				SchemaRegistryLabelName: schemaRegistryName,
-			},
-		},
-		Spec: clientv1alpha1.SchemaVersionSpec{
-			Subject:                schema.GetSubject(),
-			Version:                version,
-			Content:                schema.Spec.Content,
-			SchemaRegistrySchemaId: int(*srSchemaObject.Id),
-		},
-	}
 }
 
 // SetupWithManager sets up the controller with the Manager.

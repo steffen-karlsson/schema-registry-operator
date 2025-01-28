@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"strconv"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,18 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
-	"github.com/steffen-karlsson/schema-registry-operator/pkg/hash"
 )
-
-// Updated checks if the content hash has changed, or it is a new object
-func Updated(meta metav1.ObjectMeta, s hash.Hashable) (bool, error) {
-	contentHash, exists := meta.Labels[SchemaRegistryContentHash]
-	newHash, err := s.Hash()
-	if err != nil {
-		return false, err
-	}
-	return !exists || contentHash != strconv.Itoa(int(newHash)), nil
-}
 
 func FetchSchemaRegistryInstance(
 	ctx context.Context,
@@ -40,7 +28,7 @@ func FetchSchemaRegistryInstance(
 	switch {
 	case apierrors.IsNotFound(err):
 		updatable.UpdateStatus(false, "Schema Registry instance not found")
-		return nil, false, ErrInstanceNotFound
+		return nil, true, ErrInstanceNotFound
 	case err != nil:
 		return nil, false, err
 	}
