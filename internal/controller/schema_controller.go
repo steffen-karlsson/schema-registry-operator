@@ -94,7 +94,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// The purpose is to get the SchemaRegistry instance
 	schemaRegistry, retry, err := FetchSchemaRegistryInstance(ctx, r, schema.ObjectMeta, schema)
 	if err != nil {
-		logger.Error(err, "failed to get schema registry instance")
+		logger.Info("failed to get schema registry instance")
 
 		if err = r.Status().Update(ctx, schema); err != nil {
 			logger.Error(err, "failed to update schema status")
@@ -108,6 +108,30 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	// The purpose is to check if the schema is scheduled for deletion
+	if schema.GetDeletionTimestamp() != nil {
+		return r.delete(ctx, schema, schemaRegistry, logger)
+	}
+
+	return r.upsert(ctx, schema, schemaRegistry, logger)
+
+}
+
+func (r *SchemaReconciler) delete(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) (ctrl.Result, error) {
+	return ctrl.Result{}, nil
+}
+
+func (r *SchemaReconciler) upsert(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) (ctrl.Result, error) {
 	srSchemaObject, err := r.deploySchema(ctx, schema, schemaRegistry, logger)
 	if err != nil {
 		logger.Error(err, "failed to deploy schema to schema registry", "schema", schema)
@@ -122,11 +146,13 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
+
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	if err = r.Update(ctx, schema); err != nil {
-		return ctrl.Result{RequeueAfter: time.Minute}, err
+		logger.Error(err, "failed to update schema")
+		return ctrl.Result{}, err
 	}
 
 	schema.UpdateStatus(true, SchemaDeployedSuccess)
@@ -137,7 +163,8 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{RequeueAfter: time.Minute}, nil
+	secondsTillNextReconcile := time.Duration(schema.Spec.SchemaRegistryConfig.SyncInterval) * time.Second
+	return ctrl.Result{RequeueAfter: secondsTillNextReconcile}, nil
 }
 
 func (r *SchemaReconciler) deploySchema(

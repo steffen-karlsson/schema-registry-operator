@@ -63,6 +63,18 @@ type SchemaSpec struct {
 	// +kubebuilder:validation:Optional
 	// Used to define if the schema should be normalized, default is false
 	Normalize bool `json:"normalize" default:"false"`
+
+	// +kubebuilder:default:={}
+	// +kubebuilder:validation:Optional
+	// Used to define the schema registry configuration
+	SchemaRegistryConfig SchemaRegistryConfig `json:"schemaRegistryConfig"`
+}
+
+type SchemaRegistryConfig struct {
+	// +kubebuilder:default:=300
+	// +kubebuilder:validation:Optional
+	// Used to define the synchronization interval for the schema registry, default is 300 seconds
+	SyncInterval int64 `json:"syncInterval" default:"300"`
 }
 
 // SchemaStatus defines the observed state of Schema
@@ -89,6 +101,7 @@ type SchemaStatus struct {
 // +kubebuilder:printcolumn:name="Subject",type="string",JSONPath=".spec.subject",description="The subject of the schema"
 // +kubebuilder:printcolumn:name="Target",type="string",JSONPath=".spec.target",description="The target of the schema"
 // +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="The type of the schema"
+// +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.status.latestVersion",description="The current version of the schema"
 // +kubebuilder:printcolumn:name="Compatibility Level",type="string",JSONPath=".spec.compatibilityLevel",description="The compatibility level of the schema"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="The readiness of the schema"
 

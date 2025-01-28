@@ -27,6 +27,10 @@ spec:
       jsonPath: .spec.type
       name: Type
       type: string
+    - description: The current version of the schema
+      jsonPath: .spec.status.latestVersion
+      name: Version
+      type: string
     - description: The compatibility level of the schema
       jsonPath: .spec.compatibilityLevel
       name: Compatibility Level
@@ -74,6 +78,15 @@ spec:
                 description: Used to define if the schema should be normalized, default
                   is false
                 type: boolean
+              schemaRegistryConfig:
+                default: {}
+                description: Used to define the schema registry configuration
+                properties:
+                  syncInterval:
+                    default: 300
+                    description: Used to define the synchronization interval for the
+                      schema registry, default is 300 seconds
+                type: object
               subject:
                 description: Used to define the schema subject, default is the name
                   of the resource
