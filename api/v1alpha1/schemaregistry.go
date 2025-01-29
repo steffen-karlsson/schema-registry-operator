@@ -93,14 +93,22 @@ func (s *SchemaRegistry) DeleteSchema(
 	}
 
 	softDeleteResp, err := srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), nil)
-	if softDeleteResp.HTTPResponse.StatusCode != http.StatusOK || !apierrors.IsNotFound(err) {
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToSoftDeleteSchema, err)
+	}
+
+	if softDeleteResp.HTTPResponse.StatusCode != http.StatusOK && softDeleteResp.HTTPResponse.StatusCode != http.StatusNotFound {
 		return fmt.Errorf("%w: %w", ErrFailedToSoftDeleteSchema, err)
 	}
 
 	hardDeleteResp, err := srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), &srclient.DeleteSubject1Params{
 		Permanent: ptr.To(true),
 	})
-	if hardDeleteResp.HTTPResponse.StatusCode != http.StatusOK || !apierrors.IsNotFound(err) {
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToHardDeleteSchema, err)
+	}
+
+	if hardDeleteResp.HTTPResponse.StatusCode != http.StatusOK && hardDeleteResp.HTTPResponse.StatusCode != http.StatusNotFound {
 		return fmt.Errorf("%w: %w", ErrFailedToHardDeleteSchema, err)
 	}
 
