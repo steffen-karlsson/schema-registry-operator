@@ -105,78 +105,71 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// The purpose is to check if the schema is scheduled for deletion
-	schemaMarkedTobeDeleted := schema.GetDeletionTimestamp() != nil
-	if schemaMarkedTobeDeleted {
-		if err = r.delete(ctx, schema, schemaRegistry, logger); err != nil {
-			logger.Error(err, "failed to delete schema")
-			return ctrl.Result{RequeueAfter: time.Minute}, err
-		}
-
-		controllerutil.RemoveFinalizer(schema, SchemaFinalizer)
-		if err = r.Update(ctx, schema); err != nil {
-			logger.Error(err, "failed to remove finalizer from schema")
-			return ctrl.Result{RequeueAfter: time.Minute}, err
-		}
+	schemaMarkedToBeDeleted := schema.GetDeletionTimestamp() != nil
+	if schemaMarkedToBeDeleted {
+		return r.DeleteReconciler(ctx, schema, schemaRegistry, logger)
 	}
 
-	// All one of events, needs to be checked, otherwise crd Update, will trigger the next reconcile
-	// 1) Add finalizer to the schema
-	// 2) Assign subject to the schema
-	// 3) [TODO] Check if the <schema.Spec.Subject>-<schema.Spec.Type> is unique
-	if !controllerutil.ContainsFinalizer(schema, SchemaFinalizer) || schema.Spec.Subject == "" {
-		controllerutil.AddFinalizer(schema, SchemaFinalizer)
-		if schema.Spec.Subject == "" {
-			// Need to check if <schema.Spec.Subject>-<schema.Spec.Type> is unique
-			schema.Spec.Subject = schema.Name
-		}
-		if err = r.Update(ctx, schema); err != nil {
-			logger.Error(err, "failed to update schema")
-			return ctrl.Result{}, err
-		}
+	isNewSchemaObject := !controllerutil.ContainsFinalizer(schema, SchemaFinalizer)
+	if isNewSchemaObject {
+		return r.CreateReconciler(ctx, schema, schemaRegistry, logger)
 	}
 
-	return r.upsert(ctx, schema, schemaRegistry, logger)
+	return r.UpdateReconciler(ctx, schema, schemaRegistry, logger)
 
 }
 
-func (r *SchemaReconciler) delete(
-	ctx context.Context,
-	schema *clientv1alpha1.Schema,
-	schemaRegistry *clientv1alpha1.SchemaRegistry,
-	logger logr.Logger,
-) error {
-	logger.Info("Deleting schema in schema registry", "Name", schema.Name, "Namespace", schema.Namespace)
-	srClient, err := schemaRegistry.NewInstance()
-	if err != nil {
-		logger.Error(err, "failed to create schema registry client")
-		return err
-	}
-
-	_, err = srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), nil)
-	if err != nil {
-		logger.Error(err, "failed to delete schema")
-		return fmt.Errorf("failed to delete schema: %w", err)
-	}
-
-	permanentDelete := true
-	_, err = srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), &srclient.DeleteSubject1Params{
-		Permanent: &permanentDelete,
-	})
-	if err != nil {
-		logger.Error(err, "failed to permanently delete schema")
-	}
-
-	return nil
-}
-
-func (r *SchemaReconciler) upsert(
+func (r *SchemaReconciler) DeleteReconciler(
 	ctx context.Context,
 	schema *clientv1alpha1.Schema,
 	schemaRegistry *clientv1alpha1.SchemaRegistry,
 	logger logr.Logger,
 ) (ctrl.Result, error) {
-	logger.Info("Upserting schema in schema registry", "Name", schema.Name, "Namespace", schema.Namespace)
+	logger.Info("Deleting Schema: ", "Name", schema.Name, "Namespace", schema.Namespace)
+	if err := r.deleteSchema(ctx, schema, schemaRegistry, logger); err != nil {
+		logger.Error(err, "failed to delete schema")
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+
+	controllerutil.RemoveFinalizer(schema, SchemaFinalizer)
+	if err := r.Update(ctx, schema); err != nil {
+		logger.Error(err, "failed to remove finalizer from schema")
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+// All one of events, needs to be checked, otherwise crd Update, will trigger the next reconcile
+// 1) Add finalizer to the schema
+// 2) Assign subject to the schema
+// 3) [TODO] Check if the <schema.Spec.Subject>-<schema.Spec.Type> is unique
+func (r *SchemaReconciler) CreateReconciler(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) (ctrl.Result, error) {
+	logger.Info("Creating Schema: ", "Name", schema.Name, "Namespace", schema.Namespace)
+	controllerutil.AddFinalizer(schema, SchemaFinalizer)
+
+	if schema.Spec.Subject == "" {
+		// Need to check if <schema.Spec.Subject>-<schema.Spec.Type> is unique
+		schema.Spec.Subject = schema.Name
+	}
+	if err := r.Update(ctx, schema); err != nil {
+		logger.Error(err, "failed to update schema")
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *SchemaReconciler) UpdateReconciler(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) (ctrl.Result, error) {
+	logger.Info("Updating Schema: ", "Name", schema.Name, "Namespace", schema.Namespace)
 	srSchemaObject, err := r.deploySchema(ctx, schema, schemaRegistry, logger)
 	if err != nil {
 		logger.Error(err, "failed to deploy schema to schema registry", "schema", schema)
@@ -205,6 +198,36 @@ func (r *SchemaReconciler) upsert(
 
 	secondsTillNextReconcile := time.Duration(schema.Spec.SchemaRegistryConfig.SyncInterval) * time.Second
 	return ctrl.Result{RequeueAfter: secondsTillNextReconcile}, nil
+}
+
+func (r *SchemaReconciler) deleteSchema(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) error {
+	logger.Info("Deleting schema in schema registry", "Name", schema.Name, "Namespace", schema.Namespace)
+	srClient, err := schemaRegistry.NewInstance()
+	if err != nil {
+		logger.Error(err, "failed to create schema registry client")
+		return err
+	}
+
+	_, err = srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), nil)
+	if err != nil {
+		logger.Error(err, "failed to delete schema")
+		return fmt.Errorf("failed to delete schema: %w", err)
+	}
+
+	permanentDelete := true
+	_, err = srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), &srclient.DeleteSubject1Params{
+		Permanent: &permanentDelete,
+	})
+	if err != nil {
+		logger.Error(err, "failed to permanently delete schema")
+	}
+
+	return nil
 }
 
 func (r *SchemaReconciler) deploySchema(
