@@ -39,11 +39,6 @@ const namespace = "schema-registry-operator-system"
 
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
-		By("installing prometheus operator")
-		Expect(utils.InstallPrometheusOperator()).To(Succeed())
-
-		By("installing the cert-manager")
-		Expect(utils.InstallCertManager()).To(Succeed())
 
 		By("creating manager namespace")
 		cmd := exec.Command("kubectl", "create", "ns", namespace)
@@ -51,11 +46,6 @@ var _ = Describe("controller", Ordered, func() {
 	})
 
 	AfterAll(func() {
-		By("uninstalling the Prometheus manager bundle")
-		utils.UninstallPrometheusOperator()
-
-		By("uninstalling the cert-manager bundle")
-		utils.UninstallCertManager()
 
 		By("removing manager namespace")
 		cmd := exec.Command("kubectl", "delete", "ns", namespace)
@@ -68,7 +58,7 @@ var _ = Describe("controller", Ordered, func() {
 			var err error
 
 			// projectimage stores the name of the image used in the example
-			var projectimage = "example.com/schema-registry-operator:v0.0.1"
+			var projectimage = "example.com/schema-registry-operator:integration-test"
 
 			By("building the manager(Operator) image")
 			cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
