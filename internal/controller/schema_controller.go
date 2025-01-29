@@ -34,6 +34,7 @@ import (
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -208,6 +209,18 @@ func (r *SchemaReconciler) UpdateReconciler(
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
+	err = r.changeCompatibilityLevel(ctx, schema, schemaRegistry, logger)
+	if err != nil {
+		logger.Error(err, "failed to change compatibility level")
+		schema.UpdateStatus(false, "Failed to change compatibility level in Schema Registry: "+schemaRegistry.Name)
+
+		if err = r.Status().Update(ctx, schema); err != nil {
+			logger.Error(err, "failed to update schema status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+
 	schema.UpdateStatus(true, SchemaDeployedSuccess)
 	schema.Status.LatestVersion = int(*srSchemaObject.Version)
 
@@ -287,6 +300,28 @@ func (r *SchemaReconciler) deploySchema(
 	}
 
 	return getResp.ApplicationvndSchemaregistryV1JSON200, nil
+}
+
+func (r *SchemaReconciler) changeCompatibilityLevel(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) error {
+	srClient, err := schemaRegistry.NewInstance()
+	if err != nil {
+		logger.Error(err, "failed to create schema registry client")
+		return err
+	}
+	resp, err := srClient.UpdateSubjectLevelConfig1WithResponse(ctx, schema.GetSubject(), srclient.UpdateSubjectLevelConfig1JSONRequestBody{
+		Compatibility: ptr.To(srclient.ConfigUpdateRequestCompatibility(schema.Spec.CompatibilityLevel)),
+	})
+
+	if err != nil || resp.HTTPResponse.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to update compatibility level: %w", err)
+	}
+
+	return nil
 }
 
 func (r *SchemaReconciler) isSubjectUnique(
