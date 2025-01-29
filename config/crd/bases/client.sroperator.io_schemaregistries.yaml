@@ -57,7 +57,6 @@ spec:
             description: SchemaRegistrySpec defines the desired state of SchemaRegistry
             properties:
               additionalConfig:
-                default: '[]'
                 description: Used to define the additional configurations as environmental
                   variables for the schema registry
                 items:

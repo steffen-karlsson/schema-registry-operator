@@ -68,7 +68,6 @@ type SchemaRegistrySpec struct {
 	// Used to define the Kafka configuration
 	KafkaConfig KafkaConfig `json:"kafkaConfig"`
 
-	// +kubebuilder:default:=[]
 	// +kubebuilder:validation:Optional
 	// Used to define the additional configurations as environmental variables for the schema registry
 	AdditionalConfig []corev1.EnvVar `json:"additionalConfig"`
