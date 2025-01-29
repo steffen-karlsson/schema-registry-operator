@@ -68,6 +68,11 @@ type SchemaRegistrySpec struct {
 	// Used to define the Kafka configuration
 	KafkaConfig KafkaConfig `json:"kafkaConfig"`
 
+	// +kubebuilder:default:=[]
+	// +kubebuilder:validation:Optional
+	// Used to define the additional configurations as environmental variables for the schema registry
+	AdditionalConfig []corev1.EnvVar `json:"additionalConfig"`
+
 	// +kubebuilder:default:=false
 	// Used to define the debug mode, default is disabled
 	Debug bool `json:"debug,omitempty" default:"false"`
@@ -83,7 +88,7 @@ type ContainerImage struct {
 	// +kubebuilder:default:=IfNotPresent
 	// +kubebuilder:validation:Optional
 	// Used to define the pull policy, default is IfNotPresent
-	PullPolicy *corev1.PullPolicy `json:"pullPolicy" default:"IfNotPresent""`
+	PullPolicy *corev1.PullPolicy `json:"pullPolicy" default:"IfNotPresent"`
 }
 
 // SchemaRegistryIngress defines the desired state of the ingress

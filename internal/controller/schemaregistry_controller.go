@@ -241,6 +241,13 @@ func (r *SchemaRegistryReconciler) createSchemaRegistryDeployment(sr *clientv1al
 		},
 	}
 
+	for _, additionalConfig := range sr.Spec.AdditionalConfig {
+		envs = append(envs, corev1.EnvVar{
+			Name:  additionalConfig.Name,
+			Value: additionalConfig.Value,
+		})
+	}
+
 	if sr.Spec.Debug {
 		envs = append(envs, corev1.EnvVar{
 			Name:  "SCHEMA_REGISTRY_DEBUG",
