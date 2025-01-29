@@ -35,6 +35,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -139,10 +140,7 @@ func (r *SchemaReconciler) DeleteReconciler(
 	return ctrl.Result{}, nil
 }
 
-// All one of events, needs to be checked, otherwise crd Update, will trigger the next reconcile
-// 1) Add finalizer to the schema
-// 2) Assign subject to the schema
-// 3) [TODO] Check if the <schema.Spec.Subject>-<schema.Spec.Type> is unique
+// CreateReconciler creates a new schema in the schema registry
 func (r *SchemaReconciler) CreateReconciler(
 	ctx context.Context,
 	schema *clientv1alpha1.Schema,
@@ -153,9 +151,30 @@ func (r *SchemaReconciler) CreateReconciler(
 	controllerutil.AddFinalizer(schema, SchemaFinalizer)
 
 	if schema.Spec.Subject == "" {
-		// Need to check if <schema.Spec.Subject>-<schema.Spec.Type> is unique
 		schema.Spec.Subject = schema.Name
 	}
+
+	unique, err := r.isSubjectUnique(ctx, schema, schemaRegistry, logger)
+	if err != nil {
+		logger.Error(err, "failed to check if subject is unique")
+		return ctrl.Result{}, err
+	}
+
+	if !unique {
+		logger.Info("subject is not unique")
+
+		message := fmt.Sprintf("Subject %s is not unique in Schema Registry %s",
+			schema.GetSubject(), schemaRegistry.Name)
+		schema.UpdateStatus(false, message)
+
+		if err = r.Status().Update(ctx, schema); err != nil {
+			logger.Error(err, "failed to update schema")
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	if err := r.Update(ctx, schema); err != nil {
 		logger.Error(err, "failed to update schema")
 		return ctrl.Result{RequeueAfter: time.Minute}, err
@@ -163,6 +182,7 @@ func (r *SchemaReconciler) CreateReconciler(
 	return ctrl.Result{}, nil
 }
 
+// UpdateReconciler updates the schema in the schema registry
 func (r *SchemaReconciler) UpdateReconciler(
 	ctx context.Context,
 	schema *clientv1alpha1.Schema,
@@ -267,6 +287,30 @@ func (r *SchemaReconciler) deploySchema(
 	}
 
 	return getResp.ApplicationvndSchemaregistryV1JSON200, nil
+}
+
+func (r *SchemaReconciler) isSubjectUnique(
+	ctx context.Context,
+	schema *clientv1alpha1.Schema,
+	schemaRegistry *clientv1alpha1.SchemaRegistry,
+	logger logr.Logger,
+) (bool, error) {
+	potentialMatchingSchemas := &clientv1alpha1.SchemaList{}
+	if err := r.List(ctx, potentialMatchingSchemas,
+		client.InNamespace(schema.Namespace),
+		client.MatchingLabels{SchemaRegistryLabelName: schemaRegistry.Name}); err != nil {
+
+		logger.Error(err, "failed to list schemas")
+		return false, err
+	}
+
+	for _, potentialMatchingSchema := range potentialMatchingSchemas.Items {
+		if potentialMatchingSchema.GetSubject() == schema.GetSubject() {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
