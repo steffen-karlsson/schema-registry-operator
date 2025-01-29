@@ -33,3 +33,6 @@ go.work.sum
 
 # OpenAPI generated code
 *.gen.go
+
+# Vscode
+.vscode/
