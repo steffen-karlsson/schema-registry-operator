@@ -28,25 +28,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clientv1alpha1 "github.com/steffen-karlsson/schema-registry-operator/api/v1alpha1"
 	k8s_manager "github.com/steffen-karlsson/schema-registry-operator/pkg/k8s"
-	"github.com/steffen-karlsson/schema-registry-operator/pkg/srclient"
 )
 
 const (
-	SchemaVersionLatest   = "latest"
 	SchemaDeployedSuccess = "Schema deployed successfully"
 )
 
@@ -91,19 +86,20 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// The purpose is to get the SchemaRegistry instance
-	schemaRegistry, retry, err := FetchSchemaRegistryInstance(ctx, r, schema.ObjectMeta, schema)
-	if err != nil {
-		logger.Info("failed to get schema registry instance")
+	schemaRegistry := &clientv1alpha1.SchemaRegistry{}
+	err = schemaRegistry.NewInstance(ctx, r, schema.ObjectMeta, schema)
+	switch {
+	case errors.Is(err, clientv1alpha1.ErrInstanceLabelNotFound) || errors.Is(err, clientv1alpha1.ErrInstanceNotFound):
+		logger.Info("schema registry instance not found")
 
 		if err = r.Status().Update(ctx, schema); err != nil {
 			logger.Error(err, "failed to update schema status")
 			return ctrl.Result{}, err
 		}
 
-		if retry {
-			return ctrl.Result{RequeueAfter: time.Minute}, nil
-		}
-
+		return ctrl.Result{RequeueAfter: time.Minute}, nil
+	case err != nil:
+		logger.Error(err, "failed to get schema registry instance")
 		return ctrl.Result{}, err
 	}
 
@@ -128,7 +124,7 @@ func (r *SchemaReconciler) DeleteReconciler(
 	logger logr.Logger,
 ) (ctrl.Result, error) {
 	logger.Info("Deleting Schema: ", "Name", schema.Name, "Namespace", schema.Namespace)
-	if err := r.deleteSchema(ctx, schema, schemaRegistry, logger); err != nil {
+	if err := schemaRegistry.DeleteSchema(ctx, schema, logger); err != nil {
 		logger.Error(err, "failed to delete schema")
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
@@ -155,7 +151,7 @@ func (r *SchemaReconciler) CreateReconciler(
 		schema.Spec.Subject = schema.Name
 	}
 
-	unique, err := r.isSubjectUnique(ctx, schema, schemaRegistry, logger)
+	unique, err := schema.IsSubjectUnique(ctx, r, schemaRegistry.Name)
 	if err != nil {
 		logger.Error(err, "failed to check if subject is unique")
 		return ctrl.Result{}, err
@@ -191,11 +187,11 @@ func (r *SchemaReconciler) UpdateReconciler(
 	logger logr.Logger,
 ) (ctrl.Result, error) {
 	logger.Info("Updating Schema: ", "Name", schema.Name, "Namespace", schema.Namespace)
-	srSchemaObject, err := r.deploySchema(ctx, schema, schemaRegistry, logger)
+	srSchemaObject, err := schemaRegistry.DeploySchema(ctx, schema, logger)
 	if err != nil {
 		logger.Error(err, "failed to deploy schema to schema registry", "schema", schema)
 
-		if errors.Is(err, ErrIncompatibleSchema) || errors.Is(err, ErrInvalidSchemaOrType) {
+		if errors.Is(err, clientv1alpha1.ErrIncompatibleSchema) || errors.Is(err, clientv1alpha1.ErrInvalidSchemaOrType) {
 			schema.Status.SchemaRegistryError = errors.Unwrap(err).Error()
 		}
 
@@ -209,7 +205,7 @@ func (r *SchemaReconciler) UpdateReconciler(
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
-	err = r.changeCompatibilityLevel(ctx, schema, schemaRegistry, logger)
+	err = schemaRegistry.ChangeCompatibilityLevel(ctx, schema, logger)
 	if err != nil {
 		logger.Error(err, "failed to change compatibility level")
 		schema.UpdateStatus(false, "Failed to change compatibility level in Schema Registry: "+schemaRegistry.Name)
@@ -231,121 +227,6 @@ func (r *SchemaReconciler) UpdateReconciler(
 
 	secondsTillNextReconcile := time.Duration(schema.Spec.SchemaRegistryConfig.SyncInterval) * time.Second
 	return ctrl.Result{RequeueAfter: secondsTillNextReconcile}, nil
-}
-
-func (r *SchemaReconciler) deleteSchema(
-	ctx context.Context,
-	schema *clientv1alpha1.Schema,
-	schemaRegistry *clientv1alpha1.SchemaRegistry,
-	logger logr.Logger,
-) error {
-	logger.Info("Deleting schema in schema registry", "Name", schema.Name, "Namespace", schema.Namespace)
-	srClient, err := schemaRegistry.NewInstance()
-	if err != nil {
-		logger.Error(err, "failed to create schema registry client")
-		return err
-	}
-
-	_, err = srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), nil)
-	if err != nil {
-		logger.Error(err, "failed to delete schema")
-		return fmt.Errorf("failed to delete schema: %w", err)
-	}
-
-	permanentDelete := true
-	_, err = srClient.DeleteSubject1WithResponse(ctx, schema.GetSubject(), &srclient.DeleteSubject1Params{
-		Permanent: &permanentDelete,
-	})
-	if err != nil {
-		logger.Error(err, "failed to permanently delete schema")
-	}
-
-	return nil
-}
-
-func (r *SchemaReconciler) deploySchema(
-	ctx context.Context,
-	schema *clientv1alpha1.Schema,
-	schemaRegistry *clientv1alpha1.SchemaRegistry,
-	logger logr.Logger,
-) (*srclient.Schema, error) {
-	srClient, err := schemaRegistry.NewInstance()
-	if err != nil {
-		logger.Error(err, "failed to create schema registry client")
-		return nil, err
-	}
-
-	registerResp, err := srClient.Register1WithResponse(ctx, schema.GetSubject(), &srclient.Register1Params{
-		Normalize: &schema.Spec.Normalize,
-	}, srclient.Register1JSONRequestBody{
-		Schema:     &schema.Spec.Content,
-		SchemaType: &schema.Spec.Type,
-	})
-
-	if err != nil {
-		logger.Error(err, "failed to register schema")
-		return nil, err
-	}
-
-	switch registerResp.HTTPResponse.StatusCode {
-	case http.StatusUnprocessableEntity:
-		return nil, NewInvalidSchemaOrTypeError(*registerResp.ApplicationvndSchemaregistryV1JSON422.Message)
-	case http.StatusConflict:
-		return nil, NewIncompatibleSchemaError(*registerResp.ApplicationvndSchemaregistryV1JSON409.Message)
-	}
-
-	getResp, err := srClient.GetSchemaByVersion1WithResponse(ctx, schema.GetSubject(), SchemaVersionLatest, nil)
-	if err != nil || getResp.HTTPResponse.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unknown error, failed to get schema: %w", err)
-	}
-
-	return getResp.ApplicationvndSchemaregistryV1JSON200, nil
-}
-
-func (r *SchemaReconciler) changeCompatibilityLevel(
-	ctx context.Context,
-	schema *clientv1alpha1.Schema,
-	schemaRegistry *clientv1alpha1.SchemaRegistry,
-	logger logr.Logger,
-) error {
-	srClient, err := schemaRegistry.NewInstance()
-	if err != nil {
-		logger.Error(err, "failed to create schema registry client")
-		return err
-	}
-	resp, err := srClient.UpdateSubjectLevelConfig1WithResponse(ctx, schema.GetSubject(), srclient.UpdateSubjectLevelConfig1JSONRequestBody{
-		Compatibility: ptr.To(srclient.ConfigUpdateRequestCompatibility(schema.Spec.CompatibilityLevel)),
-	})
-
-	if err != nil || resp.HTTPResponse.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to update compatibility level: %w", err)
-	}
-
-	return nil
-}
-
-func (r *SchemaReconciler) isSubjectUnique(
-	ctx context.Context,
-	schema *clientv1alpha1.Schema,
-	schemaRegistry *clientv1alpha1.SchemaRegistry,
-	logger logr.Logger,
-) (bool, error) {
-	potentialMatchingSchemas := &clientv1alpha1.SchemaList{}
-	if err := r.List(ctx, potentialMatchingSchemas,
-		client.InNamespace(schema.Namespace),
-		client.MatchingLabels{SchemaRegistryLabelName: schemaRegistry.Name}); err != nil {
-
-		logger.Error(err, "failed to list schemas")
-		return false, err
-	}
-
-	for _, potentialMatchingSchema := range potentialMatchingSchemas.Items {
-		if potentialMatchingSchema.GetSubject() == schema.GetSubject() {
-			return false, nil
-		}
-	}
-
-	return true, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

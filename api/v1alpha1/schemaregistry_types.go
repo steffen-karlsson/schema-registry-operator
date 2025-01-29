@@ -25,13 +25,9 @@ SOFTWARE.
 package v1alpha1
 
 import (
-	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/steffen-karlsson/schema-registry-operator/pkg/srclient"
 )
 
 // SchemaRegistrySpec defines the desired state of SchemaRegistry
@@ -174,9 +170,4 @@ type SchemaRegistryList struct {
 
 func init() {
 	SchemeBuilder.Register(&SchemaRegistry{}, &SchemaRegistryList{})
-}
-
-func (s *SchemaRegistry) NewInstance() (*srclient.ClientWithResponses, error) {
-	server := fmt.Sprintf("http://%s:%d", s.Name, s.Spec.Port)
-	return srclient.NewClientWithResponses(server)
 }
