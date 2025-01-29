@@ -28,9 +28,9 @@ spec:
       name: Type
       type: string
     - description: The current version of the schema
-      jsonPath: .spec.status.latestVersion
+      jsonPath: .status.latestVersion
       name: Version
-      type: string
+      type: integer
     - description: The compatibility level of the schema
       jsonPath: .spec.compatibilityLevel
       name: Compatibility Level
@@ -86,6 +86,8 @@ spec:
                     default: 300
                     description: Used to define the synchronization interval for the
                       schema registry, default is 300 seconds
+                    format: int64
+                    type: integer
                 type: object
               subject:
                 description: Used to define the schema subject, default is the name

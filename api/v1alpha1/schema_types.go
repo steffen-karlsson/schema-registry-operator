@@ -101,7 +101,7 @@ type SchemaStatus struct {
 // +kubebuilder:printcolumn:name="Subject",type="string",JSONPath=".spec.subject",description="The subject of the schema"
 // +kubebuilder:printcolumn:name="Target",type="string",JSONPath=".spec.target",description="The target of the schema"
 // +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="The type of the schema"
-// +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.status.latestVersion",description="The current version of the schema"
+// +kubebuilder:printcolumn:name="Version",type="integer",JSONPath=".status.latestVersion",description="The current version of the schema"
 // +kubebuilder:printcolumn:name="Compatibility Level",type="string",JSONPath=".spec.compatibilityLevel",description="The compatibility level of the schema"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="The readiness of the schema"
 
