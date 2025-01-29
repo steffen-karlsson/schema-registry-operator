@@ -85,10 +85,7 @@ var _ = Describe("controller", Ordered, func() {
 
 				cmd = exec.Command("kubectl", "get",
 					"pods", "-l", "control-plane=controller-manager",
-					"-o", "go-template={{ range .items }}"+
-						"{{ if not .metadata.deletionTimestamp }}"+
-						"{{ .metadata.name }}"+
-						"{{ \"\\n\" }}{{ end }}{{ end }}",
+					"-o", "name", "--no-headers=true",
 					"-n", namespace,
 				)
 
@@ -103,7 +100,7 @@ var _ = Describe("controller", Ordered, func() {
 
 				// Validate pod status
 				cmd = exec.Command("kubectl", "get",
-					"pods", controllerPodName, "-o", "jsonpath={.status.phase}",
+					controllerPodName, "-o", "jsonpath={.status.phase}",
 					"-n", namespace,
 				)
 				status, err := utils.Run(cmd)
