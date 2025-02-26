@@ -85,17 +85,22 @@ More examples can be found [here](./config/samples/client_v1alpha1_schema.yaml)
 - kubectl
 - go
 
-## Installation
+### Schema reconciliation diagram
+```mermaid
+# docs/diagrams/schema_reconciliation_loop.md
+```
+
+### Deploying
 ```sh
 kind create cluster
 make redeploy
 ```
 
-## Cleaning
+### Cleaning
 ```sh
 kind delete cluster
 ```
 
-## License
+### License
 MIT. See [LICENSE](./LICENSE).
 
