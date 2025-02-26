@@ -1,3 +1,6 @@
+## Schema Reconciliation Loop
+
+```mermaid
 stateDiagram-v2
     direction LR
     %% Hack to mack them separate
@@ -78,3 +81,4 @@ stateDiagram-v2
     DeleteSchemaReconciler --> reconcile4
     CreateSchemaReconciler --> reconcile4
     UpdateSchemaReconciler --> reconcile4
+```
