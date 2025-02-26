@@ -85,10 +85,9 @@ More examples can be found [here](./config/samples/client_v1alpha1_schema.yaml)
 - kubectl
 - go
 
-### Schema reconciliation diagram
-```mermaid
-# docs/diagrams/schema_reconciliation_loop.md
-```
+### Diagrams
+
+- [Schema reconciliation loop](docs/diagrams/schema_reconciliation_loop.md)
 
 ### Deploying
 ```sh
