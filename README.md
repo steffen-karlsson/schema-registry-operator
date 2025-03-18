@@ -1,113 +1,105 @@
-# schema-registry-operator
-// TODO(user): Add simple overview of use/purpose
+# Schema Registry Operator
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+A Kubernetes Operator for deploying and managing the Confluent Schema Registry and Schema objects.
 
-## Getting Started
+### Features
+- Declarative `Schema Registry` management via CRDs
+- Declarative `Schema` management via CRDs
 
+### Examples
+
+**Schema Registry**
+```yaml
+apiVersion: client.sroperator.io/v1alpha1
+kind: SchemaRegistry
+metadata:
+  name: schemaregistry-sample
+  namespace: schema-registry-operator-system
+spec:
+  image:
+    tag: 6.1.0
+    repository: docker.io/confluentinc/cp-schema-registry
+    pullPolicy: IfNotPresent
+  replicas: 1
+  compatibilityLevel: BACKWARD
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: 2
+    limits:
+      memory: 2Gi
+      cpu: 2
+  ingress:
+    enabled: true
+    host: my-schema-registry.com
+  metrics:
+    enabled: true
+    port: 9404
+  debug: true
+  kafkaConfig:
+    bootstrapServers:
+      - test-cluster-kafka-bootstrap:9094
+    authentication:
+      saslJaasConfig:
+        valueFrom:
+          secretKeyRef:
+            name: my-cluster-cluster-admin
+            key: sasl.jaas.config
+```
+
+**Schema**
+```yaml
+apiVersion: client.sroperator.io/v1alpha1
+kind: Schema
+metadata:
+  labels:
+    client.sroperator.io/instance: schemaregistry-sample
+  name: schema-sample
+  namespace: schema-registry-operator-system
+spec:
+  target: VALUE
+  type: AVRO
+  compatibilityLevel: BACKWARD
+  content: |
+    {
+        "type": "record",
+        "name": "test",
+        "fields": [
+            {
+                "type": "string",
+                "name": "field1"
+            },
+            {
+                "type": "int",
+                "name": "field2"
+            }
+        ]
+    }
+```
+
+More examples can be found [here](./config/samples/client_v1alpha1_schema.yaml)
+
+## Development
 ### Prerequisites
-- go version v1.22.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+- kind cluster
+- kubectl
+- go
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+### Diagrams
 
+- [Schema reconciliation loop](docs/diagrams/schema_reconciliation_loop.md)
+
+### Deploying
 ```sh
-make docker-build docker-push IMG=<some-registry>/schema-registry-operator:tag
+kind create cluster
+make redeploy
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
-
-**Install the CRDs into the cluster:**
-
+### Cleaning
 ```sh
-make install
+kind delete cluster
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+### License
+MIT. See [LICENSE](./LICENSE).
 
-```sh
-make deploy IMG=<some-registry>/schema-registry-operator:tag
-```
-
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
-
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
-```
-
->**NOTE**: Ensure that the samples has default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
-```
-
-**Delete the APIs(CRDs) from the cluster:**
-
-```sh
-make uninstall
-```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
-```
-
-## Project Distribution
-
-Following are the steps to build the installer and distribute this project to users.
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/schema-registry-operator:tag
-```
-
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
-
-2. Using the installer
-
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/schema-registry-operator/<tag or branch>/dist/install.yaml
-```
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
-
-## License
-
-Copyright 2025.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
